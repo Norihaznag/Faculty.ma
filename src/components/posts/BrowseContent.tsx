@@ -87,6 +87,82 @@ export function BrowseContent(): React.ReactNode {
           ))
         )}
       </div>
-    </div>
+
+      {selectedPost && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between sticky top-0 bg-gray-50 border-b border-gray-200 p-6">
+              <h2 className="text-2xl font-bold text-gray-900">{selectedPost.title}</h2>
+              <button
+                onClick={handleCloseModal}
+                className="p-1 hover:bg-gray-200 rounded-lg transition"
+              >
+                <X className="w-6 h-6 text-gray-600" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="flex gap-2 flex-wrap">
+                <span className="px-3 py-1 bg-indigo-100 text-indigo-800 text-sm font-medium rounded">
+                  {selectedPost.content_type}
+                </span>
+                <span
+                  className={`px-3 py-1 text-sm font-medium rounded ${
+                    selectedPost.published
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}
+                >
+                  {selectedPost.published ? 'Publié' : 'Brouillon'}
+                </span>
+                <span className="px-3 py-1 bg-gray-100 text-gray-800 text-sm font-medium rounded">
+                  {selectedPost.education_type === 'university' ? 'Université' : 'École'}
+                </span>
+              </div>
+
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-2">Description</h3>
+                <p className="text-gray-700">{selectedPost.description}</p>
+              </div>
+
+              {selectedPost.file_url && (
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Fichier</h3>
+                  <a
+                    href={selectedPost.file_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                  >
+                    <Download className="w-4 h-4" />
+                    Télécharger
+                  </a>
+                </div>
+              )}
+
+              {selectedPost.embed_url && (
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Contenu Intégré</h3>
+                  <a
+                    href={selectedPost.embed_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Ouvrir le lien
+                  </a>
+                </div>
+              )}
+
+              <div className="pt-4 border-t border-gray-200">
+                <p className="text-xs text-gray-500">
+                  Créé le: {new Date(selectedPost.created_at).toLocaleDateString('fr-FR')}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}    </div>
   );
 }
