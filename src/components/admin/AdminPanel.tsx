@@ -395,9 +395,9 @@ export function AdminPanel(): React.ReactNode {
               <SemestersTable
                 data={semesters}
                 fields={fields}
-                faculties={faculties}
-                universities={universities}
-                getFieldName={getFieldName}
+                _faculties={faculties}
+                _universities={universities}
+                _getFieldName={getFieldName}
                 getFieldBySemesterId={getFieldBySemesterId}
                 getFacultyByFieldId={getFacultyByFieldId}
                 getUniversityByFacultyId={getUniversityByFacultyId}
@@ -419,10 +419,10 @@ export function AdminPanel(): React.ReactNode {
                 data={subjects}
                 semesters={semesters}
                 fields={fields}
-                faculties={faculties}
-                universities={universities}
+                _faculties={faculties}
+                _universities={universities}
                 getSemesterName={getSemesterName}
-                getFieldName={getFieldName}
+                _getFieldName={getFieldName}
                 getFieldBySemesterId={getFieldBySemesterId}
                 getFacultyByFieldId={getFacultyByFieldId}
                 getUniversityByFacultyId={getUniversityByFacultyId}
@@ -914,12 +914,6 @@ function FieldsTable({
 function SemestersTable({
   data,
   fields,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  faculties,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  universities,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getFieldName,
   getFieldBySemesterId,
   getFacultyByFieldId,
   getUniversityByFacultyId,
@@ -1073,13 +1067,7 @@ function SubjectsTable({
   data,
   semesters,
   fields,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  faculties,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  universities,
   getSemesterName,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getFieldName,
   getFieldBySemesterId,
   getFacultyByFieldId,
   getUniversityByFacultyId,
@@ -1148,10 +1136,8 @@ function SubjectsTable({
         </thead>
         <tbody>
           {data.map((row: Subject, idx: number) => {
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const field = getFieldBySemesterId(row.semester_id) || fields.find((f: Field) => f.id === fields.find((fld: Field) => semesters.find((s: Semester) => s.id === row.semester_id && s.field_id === fld.id))?.id);
-            const semester = semesters.find(s => s.id === row.semester_id);
-            const semesterField = semester ? fields.find(f => f.id === semester.field_id) : undefined;
+            const semester = semesters.find((s: Semester) => s.id === row.semester_id);
+            const semesterField = semester ? fields.find((f: Field) => f.id === semester.field_id) : undefined;
             const faculty = semesterField ? getFacultyByFieldId(semesterField.id) : undefined;
             const university = faculty ? getUniversityByFacultyId(faculty.id) : undefined;
             return (
@@ -1453,11 +1439,7 @@ function SchoolYearsTable({
 function SchoolSubjectsTable({
   data,
   schoolYears,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  schoolLevels,
   getSchoolYearName,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  getSchoolLevelName,
   getLevelByYearId,
   editId,
   editData,
