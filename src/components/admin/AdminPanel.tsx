@@ -914,8 +914,11 @@ function FieldsTable({
 function SemestersTable({
   data,
   fields,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   faculties,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   universities,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getFieldName,
   getFieldBySemesterId,
   getFacultyByFieldId,
@@ -984,7 +987,7 @@ function SemestersTable({
         </thead>
         <tbody>
           {data.map((row: Semester, idx: number) => {
-            const field = getFieldBySemesterId(row.id) || fields.find(f => f.id === row.field_id);
+            const field = getFieldBySemesterId(row.id) || fields.find((f: Field) => f.id === row.field_id);
             const faculty = field ? getFacultyByFieldId(field.id) : undefined;
             const university = faculty ? getUniversityByFacultyId(faculty.id) : undefined;
             return (
@@ -1070,9 +1073,12 @@ function SubjectsTable({
   data,
   semesters,
   fields,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   faculties,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   universities,
   getSemesterName,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getFieldName,
   getFieldBySemesterId,
   getFacultyByFieldId,
@@ -1142,7 +1148,8 @@ function SubjectsTable({
         </thead>
         <tbody>
           {data.map((row: Subject, idx: number) => {
-            const field = getFieldBySemesterId(row.semester_id) || fields.find(f => f.id === fields.find((fld: Field) => semesters.find((s: Semester) => s.id === row.semester_id && s.field_id === fld.id))?.id);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            const field = getFieldBySemesterId(row.semester_id) || fields.find((f: Field) => f.id === fields.find((fld: Field) => semesters.find((s: Semester) => s.id === row.semester_id && s.field_id === fld.id))?.id);
             const semester = semesters.find(s => s.id === row.semester_id);
             const semesterField = semester ? fields.find(f => f.id === semester.field_id) : undefined;
             const faculty = semesterField ? getFacultyByFieldId(semesterField.id) : undefined;
@@ -1446,8 +1453,10 @@ function SchoolYearsTable({
 function SchoolSubjectsTable({
   data,
   schoolYears,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   schoolLevels,
   getSchoolYearName,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   getSchoolLevelName,
   getLevelByYearId,
   editId,
