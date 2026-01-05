@@ -988,7 +988,7 @@ function SemestersTable({
             <tr key={row.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} style={{borderBottom: '1px solid #d1d5db'}}>
               <td className="px-3 py-1 text-gray-600 text-xs">{university?.name || '–'}</td>
               <td className="px-3 py-1 text-gray-600 text-xs">{faculty?.name || '–'}</td>
-              <td className="px-3 py-1 text-gray-600 text-xs">{getFieldName(row.field_id)}</td>
+              <td className="px-3 py-1 text-gray-600 text-xs">{field?.name || '–'}</td>
               <td className="px-3 py-1">
                 {editId === row.id ? (
                   <input
@@ -1068,7 +1068,6 @@ function SubjectsTable({
   semesters,
   fields,
   getSemesterName,
-  getFieldBySemesterId,
   getFacultyByFieldId,
   getUniversityByFacultyId,
   editId,
