@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, BookOpen } from 'lucide-react';
+import { Eye, BookOpen, X, Download, ExternalLink } from 'lucide-react';
 import { fetchPublishedPostsSafe } from '../../lib/supabaseWithFallback';
 import type { Post } from '../../types';
 
 export function BrowseContent(): React.ReactNode {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   useEffect(() => {
     loadPosts();
@@ -20,6 +21,14 @@ export function BrowseContent(): React.ReactNode {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleViewPost = (post: Post): void => {
+    setSelectedPost(post);
+  };
+
+  const handleCloseModal = (): void => {
+    setSelectedPost(null);
   };
 
   if (loading) {
@@ -66,7 +75,11 @@ export function BrowseContent(): React.ReactNode {
                   <h3 className="text-lg font-semibold text-gray-900 mb-1">{post.title}</h3>
                   <p className="text-gray-600 text-sm">{post.description}</p>
                 </div>
-                <button className="ml-4 p-2 hover:bg-gray-100 rounded-lg transition">
+                <button
+                  onClick={() => handleViewPost(post)}
+                  className="ml-4 p-2 hover:bg-gray-100 rounded-lg transition"
+                  title="Voir le détail"
+                >
                   <Eye className="w-5 h-5 text-gray-600" />
                 </button>
               </div>
