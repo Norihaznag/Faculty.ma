@@ -258,12 +258,31 @@ export function AdminPanel(): React.ReactNode {
 
   const getUniversityName = (uniId: string) => universities.find(u => u.id === uniId)?.name || '–';
   const getFacultyName = (facId: string) => faculties.find(f => f.id === facId)?.name || '–';
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getFieldName = (fldId: string) => fields.find(f => f.id === fldId)?.name || '–';
   const getSemesterName = (semId: string) => semesters.find(s => s.id === semId)?.name || '–';
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const getSchoolLevelName = (lvlId: string) => schoolLevels.find(l => l.id === lvlId)?.name || '–';
   const getSchoolYearName = (yrId: string) => schoolYears.find(y => y.id === yrId)?.name || '–';
+
+  // Helper functions for parent lookups
+  const getFacultyByFieldId = (fieldId: string) => {
+    const field = fields.find(f => f.id === fieldId);
+    return field ? faculties.find(f => f.id === field.faculty_id) : undefined;
+  };
+
+  const getUniversityByFacultyId = (facultyId: string) => {
+    const faculty = faculties.find(f => f.id === facultyId);
+    return faculty ? universities.find(u => u.id === faculty.university_id) : undefined;
+  };
+
+  const getFieldBySemesterId = (semesterId: string) => {
+    const semester = semesters.find(s => s.id === semesterId);
+    return semester ? fields.find(f => f.id === semester.field_id) : undefined;
+  };
+
+  const getLevelByYearId = (yearId: string) => {
+    const year = schoolYears.find(y => y.id === yearId);
+    return year ? schoolLevels.find(l => l.id === year.level_id) : undefined;
+  };
 
   return (
     <div className="bg-white min-h-screen">
@@ -376,7 +395,12 @@ export function AdminPanel(): React.ReactNode {
               <SemestersTable
                 data={semesters}
                 fields={fields}
+                faculties={faculties}
+                universities={universities}
                 getFieldName={getFieldName}
+                getFieldBySemesterId={getFieldBySemesterId}
+                getFacultyByFieldId={getFacultyByFieldId}
+                getUniversityByFacultyId={getUniversityByFacultyId}
                 editId={editId}
                 editData={editData}
                 setEditData={setEditData}
@@ -394,8 +418,14 @@ export function AdminPanel(): React.ReactNode {
               <SubjectsTable
                 data={subjects}
                 semesters={semesters}
+                fields={fields}
+                faculties={faculties}
+                universities={universities}
                 getSemesterName={getSemesterName}
                 getFieldName={getFieldName}
+                getFieldBySemesterId={getFieldBySemesterId}
+                getFacultyByFieldId={getFacultyByFieldId}
+                getUniversityByFacultyId={getUniversityByFacultyId}
                 editId={editId}
                 editData={editData}
                 setEditData={setEditData}
@@ -443,8 +473,10 @@ export function AdminPanel(): React.ReactNode {
               <SchoolSubjectsTable
                 data={schoolSubjects}
                 schoolYears={schoolYears}
+                schoolLevels={schoolLevels}
                 getSchoolYearName={getSchoolYearName}
                 getSchoolLevelName={getSchoolLevelName}
+                getLevelByYearId={getLevelByYearId}
                 editId={editId}
                 editData={editData}
                 setEditData={setEditData}
@@ -882,7 +914,12 @@ function FieldsTable({
 function SemestersTable({
   data,
   fields,
+  faculties,
+  universities,
   getFieldName,
+  getFieldBySemesterId,
+  getFacultyByFieldId,
+  getUniversityByFacultyId,
   editId,
   editData,
   setEditData,
@@ -938,14 +975,22 @@ function SemestersTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-gray-100 border-b border-gray-300">
+            <th className="px-3 py-2 text-left font-bold">University</th>
+            <th className="px-3 py-2 text-left font-bold">Faculty</th>
             <th className="px-3 py-2 text-left font-bold">Field</th>
             <th className="px-3 py-2 text-left font-bold">Semester</th>
             <th className="px-3 py-2 text-right font-bold w-20">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {data.map((row: Semester, idx: number) => (
+          {data.map((row: Semester, idx: number) => {
+            const field = getFieldBySemesterId(row.id) || fields.find(f => f.id === row.field_id);
+            const faculty = field ? getFacultyByFieldId(field.id) : undefined;
+            const university = faculty ? getUniversityByFacultyId(faculty.id) : undefined;
+            return (
             <tr key={row.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} style={{borderBottom: '1px solid #d1d5db'}}>
+              <td className="px-3 py-1 text-gray-600 text-xs">{university?.name || '–'}</td>
+              <td className="px-3 py-1 text-gray-600 text-xs">{faculty?.name || '–'}</td>
               <td className="px-3 py-1 text-gray-600 text-xs">{getFieldName(row.field_id)}</td>
               <td className="px-3 py-1">
                 {editId === row.id ? (
@@ -1012,7 +1057,8 @@ function SemestersTable({
                 )}
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -1023,8 +1069,14 @@ function SemestersTable({
 function SubjectsTable({
   data,
   semesters,
+  fields,
+  faculties,
+  universities,
   getSemesterName,
-  // getFieldName,
+  getFieldName,
+  getFieldBySemesterId,
+  getFacultyByFieldId,
+  getUniversityByFacultyId,
   editId,
   editData,
   setEditData,
@@ -1080,14 +1132,26 @@ function SubjectsTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-gray-100 border-b border-gray-300">
+            <th className="px-3 py-2 text-left font-bold">University</th>
+            <th className="px-3 py-2 text-left font-bold">Faculty</th>
+            <th className="px-3 py-2 text-left font-bold">Field</th>
             <th className="px-3 py-2 text-left font-bold">Semester</th>
             <th className="px-3 py-2 text-left font-bold">Subject</th>
             <th className="px-3 py-2 text-right font-bold w-20">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {data.map((row: Subject, idx: number) => (
+          {data.map((row: Subject, idx: number) => {
+            const field = getFieldBySemesterId(row.semester_id) || fields.find(f => f.id === fields.find((fld: Field) => semesters.find((s: Semester) => s.id === row.semester_id && s.field_id === fld.id))?.id);
+            const semester = semesters.find(s => s.id === row.semester_id);
+            const semesterField = semester ? fields.find(f => f.id === semester.field_id) : undefined;
+            const faculty = semesterField ? getFacultyByFieldId(semesterField.id) : undefined;
+            const university = faculty ? getUniversityByFacultyId(faculty.id) : undefined;
+            return (
             <tr key={row.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} style={{borderBottom: '1px solid #d1d5db'}}>
+              <td className="px-3 py-1 text-gray-600 text-xs">{university?.name || '–'}</td>
+              <td className="px-3 py-1 text-gray-600 text-xs">{faculty?.name || '–'}</td>
+              <td className="px-3 py-1 text-gray-600 text-xs">{semesterField?.name || '–'}</td>
               <td className="px-3 py-1 text-gray-600 text-xs">{getSemesterName(row.semester_id)}</td>
               <td className="px-3 py-1">
                 {editId === row.id ? (
@@ -1154,7 +1218,8 @@ function SubjectsTable({
                 )}
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
@@ -1381,8 +1446,10 @@ function SchoolYearsTable({
 function SchoolSubjectsTable({
   data,
   schoolYears,
+  schoolLevels,
   getSchoolYearName,
-  // getSchoolLevelName,
+  getSchoolLevelName,
+  getLevelByYearId,
   editId,
   editData,
   setEditData,
@@ -1438,14 +1505,18 @@ function SchoolSubjectsTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="bg-gray-100 border-b border-gray-300">
+            <th className="px-3 py-2 text-left font-bold">Level</th>
             <th className="px-3 py-2 text-left font-bold">Year</th>
             <th className="px-3 py-2 text-left font-bold">Subject</th>
             <th className="px-3 py-2 text-right font-bold w-20">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {data.map((row: SchoolSubject, idx: number) => (
+          {data.map((row: SchoolSubject, idx: number) => {
+            const level = getLevelByYearId(row.year_id);
+            return (
             <tr key={row.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} style={{borderBottom: '1px solid #d1d5db'}}>
+              <td className="px-3 py-1 text-gray-600 text-xs">{level?.name || '–'}</td>
               <td className="px-3 py-1 text-gray-600 text-xs">{getSchoolYearName(row.year_id)}</td>
               <td className="px-3 py-1">
                 {editId === row.id ? (
@@ -1512,7 +1583,8 @@ function SchoolSubjectsTable({
                 )}
               </td>
             </tr>
-          ))}
+            );
+          })}
         </tbody>
       </table>
     </div>
