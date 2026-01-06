@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save } from 'lucide-react';
+import { ArrowLeft, Save, AlertCircle } from 'lucide-react';
 import { supabase, isSupabaseReady } from '../../lib/supabase';
 import {
   fetchUniversitiesSafe,
@@ -9,7 +9,7 @@ import {
   fetchSubjectsSafe,
   insertPostSafe,
 } from '../../lib/supabaseWithFallback';
-import { Select } from '../ui/Select';
+import { Button, Card, Stepper, SelectInput, TextInput, TextArea, Badge } from '../design-system';
 import type { ContentType, University, Faculty, Field, Semester, Subject } from '../../types';
 
 interface UniversityFormData {
@@ -26,14 +26,19 @@ interface UniversityFormData {
   published: boolean;
 }
 
-export function CreateUniversityPost(): React.ReactNode {
-  const [step, setStep] = useState(1);
+interface CreateUniversityPostProps {
+  onBack: () => void;
+}
+
+export function CreateUniversityPost({ onBack }: CreateUniversityPostProps): React.ReactNode {
+  const [step, setStep] = useState(0); // 0, 1, 2
   const [universities, setUniversities] = useState<University[]>([]);
   const [faculties, setFaculties] = useState<Faculty[]>([]);
   const [fields, setFields] = useState<Field[]>([]);
   const [semesters, setSemesters] = useState<Semester[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const [formData, setFormData] = useState<UniversityFormData>({
     university_id: '',
@@ -116,6 +121,7 @@ export function CreateUniversityPost(): React.ReactNode {
 
   const handleSubmit = async (): Promise<void> => {
     setSaving(true);
+    setError('');
     try {
       if (!isSupabaseReady()) {
         alert('Supabase is not configured. Please set environment variables.');
@@ -125,7 +131,7 @@ export function CreateUniversityPost(): React.ReactNode {
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        alert('User not authenticated');
+        setError('User not authenticated');
         setSaving(false);
         return;
       }
@@ -142,272 +148,261 @@ export function CreateUniversityPost(): React.ReactNode {
         created_by: user.id,
       });
 
-      alert('Contenu créé avec succès!');
-      setFormData({
-        university_id: '',
-        faculty_id: '',
-        field_id: '',
-        semester_id: '',
-        subject_id: '',
-        title: '',
-        description: '',
-        content_type: 'course',
-        file_url: '',
-        embed_url: '',
-        published: false,
-      });
-      setStep(1);
-    } catch (error) {
-      alert('Erreur: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      alert('Content created successfully!');
+      onBack();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setSaving(false);
     }
   };
 
+  const handleNext = (): void => {
+    setError('');
+    if (step === 0) {
+      if (!formData.subject_id) {
+        setError('Please select all fields to continue');
+        return;
+      }
+      setStep(1);
+    } else if (step === 1) {
+      if (!formData.title || !formData.description) {
+        setError('Title and description are required');
+        return;
+      }
+      setStep(2);
+    }
+  };
+
+  const handleBack = (): void => {
+    if (step > 0) {
+      setStep(step - 1);
+      setError('');
+    }
+  };
+
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
-        {/* Progress Steps */}
-        <div className="px-8 pt-8 pb-4">
-          <div className="flex items-center justify-between mb-8">
-            {[1, 2, 3].map((s) => (
-              <div key={s} className="flex items-center flex-1">
-                <div
-                  className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
-                    step >= s ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-600'
-                  }`}
-                >
-                  {s}
-                </div>
-                {s < 3 && (
-                  <div
-                    className={`flex-1 h-1 mx-2 ${step > s ? 'bg-indigo-600' : 'bg-gray-200'}`}
-                  />
-                )}
-              </div>
-            ))}
-          </div>
-
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            {step === 1 && 'Sélectionner la Structure'}
-            {step === 2 && 'Détails du Contenu'}
-            {step === 3 && 'Aperçu et Publication'}
-          </h2>
-          <p className="text-gray-600">
-            {step === 1 && 'Choisissez université, faculté, filière, semestre et matière'}
-            {step === 2 && 'Ajoutez titre, description et fichiers'}
-            {step === 3 && 'Vérifiez et publiez votre contenu'}
-          </p>
+    <div className="space-y-8">
+      <div className="flex items-center gap-4">
+        <Button variant="subtle" icon={ArrowLeft} onClick={onBack}>
+          Back
+        </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">New University Content</h1>
+          <p className="text-slate-600 text-sm mt-1">Add courses, exams, or summaries for university students</p>
         </div>
+      </div>
 
-        <div className="px-8 pb-8">
-          {step === 1 && (
-            <div className="space-y-4">
-              <Select
-                label="Université"
-                value={formData.university_id}
-                onChange={(v) =>
-                  setFormData({
-                    ...formData,
-                    university_id: v,
-                    faculty_id: '',
-                    field_id: '',
-                    semester_id: '',
-                    subject_id: '',
-                  })
-                }
-                options={universities}
-              />
-              {formData.university_id && (
-                <Select
-                  label="Faculté"
-                  value={formData.faculty_id}
+      <Card className="p-8">
+        <Stepper steps={['Select Subject', 'Content Details', 'Review & Publish']} currentStep={step} />
+
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-900">{error}</p>
+          </div>
+        )}
+
+        {step === 0 && (
+          <div className="space-y-5">
+            <div>
+              <p className="text-sm font-medium text-slate-600 mb-4">Follow the hierarchy to select where this content belongs</p>
+              <div className="space-y-4">
+                <SelectInput
+                  label="University"
+                  value={formData.university_id}
                   onChange={(v) =>
                     setFormData({
                       ...formData,
-                      faculty_id: v,
+                      university_id: v,
+                      faculty_id: '',
                       field_id: '',
                       semester_id: '',
                       subject_id: '',
                     })
                   }
-                  options={faculties}
+                  options={universities}
+                  required
                 />
-              )}
-              {formData.faculty_id && (
-                <Select
-                  label="Filière"
-                  value={formData.field_id}
-                  onChange={(v) =>
-                    setFormData({ ...formData, field_id: v, semester_id: '', subject_id: '' })
-                  }
-                  options={fields}
-                />
-              )}
-              {formData.field_id && (
-                <Select
-                  label="Semestre"
-                  value={formData.semester_id}
-                  onChange={(v) => setFormData({ ...formData, semester_id: v, subject_id: '' })}
-                  options={semesters}
-                />
-              )}
-              {formData.semester_id && (
-                <Select
-                  label="Matière"
-                  value={formData.subject_id}
-                  onChange={(v) => setFormData({ ...formData, subject_id: v })}
-                  options={subjects}
-                />
-              )}
-              {formData.subject_id && (
-                <button
-                  onClick={() => setStep(2)}
-                  className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-medium"
-                >
-                  Continuer
-                </button>
-              )}
+
+                {formData.university_id && (
+                  <SelectInput
+                    label="Faculty"
+                    value={formData.faculty_id}
+                    onChange={(v) =>
+                      setFormData({
+                        ...formData,
+                        faculty_id: v,
+                        field_id: '',
+                        semester_id: '',
+                        subject_id: '',
+                      })
+                    }
+                    options={faculties}
+                    required
+                  />
+                )}
+
+                {formData.faculty_id && (
+                  <SelectInput
+                    label="Field of Study"
+                    value={formData.field_id}
+                    onChange={(v) =>
+                      setFormData({ ...formData, field_id: v, semester_id: '', subject_id: '' })
+                    }
+                    options={fields}
+                    required
+                  />
+                )}
+
+                {formData.field_id && (
+                  <SelectInput
+                    label="Semester"
+                    value={formData.semester_id}
+                    onChange={(v) => setFormData({ ...formData, semester_id: v, subject_id: '' })}
+                    options={semesters}
+                    required
+                  />
+                )}
+
+                {formData.semester_id && (
+                  <SelectInput
+                    label="Subject"
+                    value={formData.subject_id}
+                    onChange={(v) => setFormData({ ...formData, subject_id: v })}
+                    options={subjects}
+                    required
+                  />
+                )}
+              </div>
             </div>
-          )}
 
-          {step === 2 && (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Type de Contenu
-                </label>
-                <select
-                  value={formData.content_type}
-                  onChange={(e) =>
-                    setFormData({ ...formData, content_type: e.target.value as ContentType })
-                  }
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="course">Cours</option>
-                  <option value="exam">Examen</option>
-                  <option value="td">TD</option>
-                  <option value="summary">Résumé</option>
-                  <option value="link">Lien</option>
-                </select>
-              </div>
+            <div className="flex gap-3 pt-4">
+              <Button variant="secondary" onClick={onBack} fullWidth>
+                Cancel
+              </Button>
+              <Button onClick={handleNext} fullWidth disabled={!formData.subject_id}>
+                Continue
+              </Button>
+            </div>
+          </div>
+        )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Titre</label>
-                <input
-                  type="text"
+        {step === 1 && (
+          <div className="space-y-5">
+            <div>
+              <p className="text-sm font-medium text-slate-600 mb-4">Add the content details</p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-900 mb-2">Content Type</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                    {(['course', 'exam', 'td', 'summary', 'link'] as ContentType[]).map((type) => (
+                      <button
+                        key={type}
+                        onClick={() => setFormData({ ...formData, content_type: type })}
+                        className={`p-3 rounded-lg border-2 transition ${
+                          formData.content_type === type
+                            ? 'border-blue-600 bg-blue-50'
+                            : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <span className="text-xs font-medium text-slate-900 capitalize">{type}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <TextInput
+                  label="Title"
                   value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Ex: Cours d'Algèbre Linéaire - Chapitre 1"
+                  onChange={(v) => setFormData({ ...formData, title: v })}
+                  placeholder="e.g., Linear Algebra - Chapter 1"
+                  required
                 />
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description
-                </label>
-                <textarea
+                <TextArea
+                  label="Description"
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  onChange={(v) => setFormData({ ...formData, description: v })}
+                  placeholder="Describe the content briefly..."
                   rows={4}
-                  placeholder="Description du contenu..."
+                  required
                 />
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  URL du Fichier (PDF)
-                </label>
-                <input
+                <TextInput
+                  label="File URL (PDF, Word, etc.)"
                   type="url"
                   value={formData.file_url}
-                  onChange={(e) => setFormData({ ...formData, file_url: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  onChange={(v) => setFormData({ ...formData, file_url: v })}
                   placeholder="https://..."
                 />
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  URL d'Intégration (YouTube, etc.)
-                </label>
-                <input
+                <TextInput
+                  label="Embed URL (YouTube, Google Drive, etc.)"
                   type="url"
                   value={formData.embed_url}
-                  onChange={(e) => setFormData({ ...formData, embed_url: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  onChange={(v) => setFormData({ ...formData, embed_url: v })}
                   placeholder="https://..."
                 />
               </div>
-
-              <div className="flex space-x-4">
-                <button
-                  onClick={() => setStep(1)}
-                  className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition font-medium"
-                >
-                  Retour
-                </button>
-                <button
-                  onClick={() => setStep(3)}
-                  className="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-medium"
-                >
-                  Continuer
-                </button>
-              </div>
             </div>
-          )}
 
-          {step === 3 && (
-            <div className="space-y-6">
-              <div className="bg-gray-50 rounded-lg p-6 space-y-3">
-                <h3 className="font-semibold text-gray-900">Aperçu</h3>
-                <div className="text-sm text-gray-600 space-y-2">
-                  <p>
-                    <strong>Titre:</strong> {formData.title}
-                  </p>
-                  <p>
-                    <strong>Type:</strong> {formData.content_type}
-                  </p>
-                  <p>
-                    <strong>Description:</strong> {formData.description}
-                  </p>
-                  {formData.file_url && <p><strong>Fichier:</strong> ✓</p>}
-                  {formData.embed_url && <p><strong>Intégration:</strong> ✓</p>}
+            <div className="flex gap-3 pt-4">
+              <Button variant="secondary" onClick={handleBack} fullWidth>
+                Back
+              </Button>
+              <Button onClick={handleNext} fullWidth>
+                Review
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="space-y-5">
+            <div>
+              <p className="text-sm font-medium text-slate-600 mb-4">Review and publish your content</p>
+
+              <div className="bg-slate-50 rounded-lg p-6 space-y-4 mb-6">
+                <div>
+                  <p className="text-xs text-slate-600 font-medium mb-1">Title</p>
+                  <p className="text-slate-900 font-medium">{formData.title}</p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-slate-600 font-medium mb-1">Description</p>
+                  <p className="text-slate-900">{formData.description}</p>
+                </div>
+
+                <div className="flex gap-2 flex-wrap">
+                  <Badge label={formData.content_type} variant="primary" />
+                  {formData.file_url && <Badge label="Has file" variant="success" />}
+                  {formData.embed_url && <Badge label="Has embed" variant="success" />}
                 </div>
               </div>
 
-              <label className="flex items-center space-x-3 cursor-pointer">
+              <label className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition">
                 <input
                   type="checkbox"
                   checked={formData.published}
                   onChange={(e) => setFormData({ ...formData, published: e.target.checked })}
-                  className="w-5 h-5 text-indigo-600 rounded focus:ring-2 focus:ring-indigo-500"
+                  className="w-5 h-5 rounded border-slate-300"
                 />
-                <span className="text-gray-900 font-medium">Publier immédiatement</span>
+                <span className="text-slate-900 font-medium">Publish immediately</span>
               </label>
-
-              <div className="flex space-x-4">
-                <button
-                  onClick={() => setStep(2)}
-                  className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300 transition font-medium"
-                >
-                  Retour
-                </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={saving}
-                  className="flex-1 bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition font-medium flex items-center justify-center space-x-2 disabled:opacity-50"
-                >
-                  <Save className="w-5 h-5" />
-                  <span>{saving ? 'Enregistrement...' : 'Enregistrer'}</span>
-                </button>
-              </div>
             </div>
-          )}
-        </div>
-      </div>
+
+            <div className="flex gap-3 pt-4">
+              <Button variant="secondary" onClick={handleBack} fullWidth>
+                Back
+              </Button>
+              <Button onClick={handleSubmit} loading={saving} fullWidth icon={Save}>
+                Save & Publish
+              </Button>
+            </div>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

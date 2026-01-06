@@ -2,13 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 import { checkUserSafe } from './lib/supabaseWithFallback';
 import { LoginPage } from './components/auth/LoginPage';
+import { Layout } from './components/layout/Layout';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { CreateUniversityPost } from './components/posts/CreateUniversityPost';
 import { CreateSchoolPost } from './components/posts/CreateSchoolPost';
 import { BrowseContent } from './components/posts/BrowseContent';
 import { AdminPanel } from './components/admin/AdminPanel';
-import { Header } from './components/layout/Header';
-import { Navigation } from './components/layout/Navigation';
 import type { User } from './types';
 
 // Main App Component
@@ -40,8 +39,8 @@ export default function App(): React.ReactNode {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-900 border-t-transparent"></div>
       </div>
     );
   }
@@ -51,17 +50,19 @@ export default function App(): React.ReactNode {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
-      <Header user={user} onLogout={handleLogout} />
-      <Navigation currentView={currentView} onViewChange={setCurrentView} />
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {currentView === 'home' && <Dashboard />}
-        {currentView === 'create-university' && <CreateUniversityPost />}
-        {currentView === 'create-school' && <CreateSchoolPost />}
-        {currentView === 'browse' && <BrowseContent />}
-        {currentView === 'admin' && <AdminPanel />}
-      </main>
-    </div>
+    <Layout
+      user={user}
+      onLogout={handleLogout}
+      currentView={currentView}
+      onViewChange={setCurrentView}
+    >
+      {currentView === 'home' && (
+        <Dashboard user={user} onNavigate={setCurrentView} />
+      )}
+      {currentView === 'create-university' && <CreateUniversityPost onBack={() => setCurrentView('home')} />}
+      {currentView === 'create-school' && <CreateSchoolPost onBack={() => setCurrentView('home')} />}
+      {currentView === 'browse' && <BrowseContent />}
+      {currentView === 'admin' && user.role === 'admin' && <AdminPanel />}
+    </Layout>
   );
 }

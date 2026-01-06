@@ -542,6 +542,20 @@ export const deleteSchoolLevel = async (id: string) => {
   if (error) throw error;
 };
 
+export const updateSchoolLevel = async (id: string, name: string) => {
+  if (!isSupabaseReady()) throw new Error('Supabase not configured');
+  
+  const validatedName = validateText(name, 'Level name');
+  
+  const { data, error } = await supabase
+    .from('school_levels')
+    .update({ name: validatedName })
+    .eq('id', id)
+    .select();
+  if (error) throw error;
+  return data;
+};
+
 // School Years
 export const insertSchoolYear = async (level_id: string, name: string) => {
   if (!isSupabaseReady()) throw new Error('Supabase not configured');
@@ -608,4 +622,114 @@ export const deleteSchoolSubject = async (id: string) => {
   if (!isSupabaseReady()) throw new Error('Supabase not configured');
   const { error } = await supabase.from('school_subjects').delete().eq('id', id);
   if (error) throw error;
+};
+// ============================================
+// POST MANAGEMENT Functions
+// ============================================
+
+/**
+ * Fetch all posts (admin view)
+ */
+export const fetchAllPostsSafe = async () => {
+  if (!isSupabaseReady()) {
+    console.log('Using dummy posts (Supabase not configured)');
+    return dummy.getDummyPublishedPosts();
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('posts')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.log('Error fetching all posts, using dummy data:', error);
+      return dummy.getDummyPublishedPosts();
+    }
+
+    return data || [];
+  } catch (error) {
+    console.log('Error fetching all posts, using dummy data:', error);
+    return dummy.getDummyPublishedPosts();
+  }
+};
+
+/**
+ * Update post
+ */
+export const updatePostSafe = async (id: string, updates: any) => {
+  if (!isSupabaseReady()) throw new Error('Supabase not configured');
+
+  try {
+    const { data, error } = await supabase
+      .from('posts')
+      .update(updates)
+      .eq('id', id)
+      .select();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating post:', error);
+    throw error;
+  }
+};
+
+/**
+ * Delete post
+ */
+export const deletePostSafe = async (id: string) => {
+  if (!isSupabaseReady()) throw new Error('Supabase not configured');
+
+  try {
+    const { error } = await supabase
+      .from('posts')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error deleting post:', error);
+    throw error;
+  }
+};
+
+/**
+ * Bulk update posts (publish/unpublish)
+ */
+export const bulkUpdatePostsSafe = async (ids: string[], updates: any) => {
+  if (!isSupabaseReady()) throw new Error('Supabase not configured');
+
+  try {
+    const { data, error } = await supabase
+      .from('posts')
+      .update(updates)
+      .in('id', ids)
+      .select();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error bulk updating posts:', error);
+    throw error;
+  }
+};
+
+/**
+ * Bulk delete posts
+ */
+export const bulkDeletePostsSafe = async (ids: string[]) => {
+  if (!isSupabaseReady()) throw new Error('Supabase not configured');
+
+  try {
+    const { error } = await supabase
+      .from('posts')
+      .delete()
+      .in('id', ids);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error bulk deleting posts:', error);
+    throw error;
+  }
 };

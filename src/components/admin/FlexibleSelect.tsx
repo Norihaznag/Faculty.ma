@@ -16,7 +16,7 @@ export function FlexibleSelect({
   value,
   onChange,
   onAddNew,
-  placeholder = 'Select or create',
+  placeholder = 'Select',
   disabled = false,
   loading = false,
 }: FlexibleSelectProps): React.ReactNode {
@@ -25,32 +25,36 @@ export function FlexibleSelect({
   const [creatingNew, setCreatingNew] = useState(false);
 
   const handleCreateNew = async (): Promise<void> => {
-    if (!newValue.trim()) return;
+    if (!newValue.trim()) {
+      return;
+    }
     
     setCreatingNew(true);
     try {
       await onAddNew(newValue.trim());
       setNewValue('');
       setShowNewInput(false);
-    } catch (error) {
-      console.error('Error creating new item:', error);
-      alert('Failed to create new item');
+    } catch (err) {
+      console.error('Error creating new item:', err);
     } finally {
       setCreatingNew(false);
     }
   };
 
   return (
-    <div className="flex gap-1">
+    <div className="flex gap-2 items-center">
       {showNewInput ? (
         <>
           <input
             type="text"
             value={newValue}
-            onChange={(e) => setNewValue(e.target.value)}
-            placeholder="Enter new item name"
-            className="px-2 py-1 border border-gray-300 text-sm flex-1"
+            onChange={(e) => {
+              setNewValue(e.target.value);
+            }}
+            placeholder="Name"
+            autoFocus
             disabled={creatingNew}
+            className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 transition-all"
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleCreateNew();
               if (e.key === 'Escape') {
@@ -62,18 +66,20 @@ export function FlexibleSelect({
           <button
             onClick={handleCreateNew}
             disabled={creatingNew || !newValue.trim()}
-            className="px-2 py-1 bg-green-100 border border-green-300 text-green-800 text-sm hover:bg-green-200 disabled:opacity-50"
+            className="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Add"
           >
-            Add
+            {creatingNew ? '...' : 'Add'}
           </button>
           <button
             onClick={() => {
               setShowNewInput(false);
               setNewValue('');
             }}
-            className="px-2 py-1 bg-gray-100 border border-gray-300 text-gray-700 text-sm hover:bg-gray-200"
+            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+            title="Cancel"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </>
       ) : (
@@ -81,7 +87,7 @@ export function FlexibleSelect({
           <select
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            className="px-2 py-1 border border-gray-300 text-sm flex-1"
+            className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 transition-all appearance-none cursor-pointer"
             disabled={disabled || loading}
           >
             <option value="">{placeholder}</option>
@@ -94,10 +100,10 @@ export function FlexibleSelect({
           <button
             onClick={() => setShowNewInput(true)}
             disabled={disabled || loading}
-            className="px-2 py-1 bg-blue-100 border border-blue-300 text-blue-800 text-sm hover:bg-blue-200 disabled:opacity-50"
-            title="Add new item"
+            className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Add new"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-5 h-5" />
           </button>
         </>
       )}
