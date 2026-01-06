@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AlertCircle } from 'lucide-react';
+import { FlexibleSelect } from './FlexibleSelect';
 import {
   fetchUniversitiesSafe,
   insertUniversity,
@@ -634,17 +635,18 @@ function FacultiesTable({
   return (
     <div className="border border-gray-300">
       <div className="bg-gray-100 border-b border-gray-300 p-2 flex gap-1">
-        <select
+        <FlexibleSelect
+          options={universities.map((u: University) => ({ id: u.id, name: u.name }))}
           value={newData.university_id || ''}
-          onChange={(e) => setNewData({ ...newData, university_id: e.target.value })}
-          className="px-2 py-1 border border-gray-300 text-sm flex-1"
+          onChange={(value) => setNewData({ ...newData, university_id: value })}
+          onAddNew={async (name: string) => {
+            await insertUniversity(name, 'New City');
+            await onRefresh();
+          }}
+          placeholder="Select or create University"
           disabled={loading}
-        >
-          <option value="">Select University</option>
-          {universities.map((u: University) => (
-            <option key={u.id} value={u.id}>{u.name}</option>
-          ))}
-        </select>
+          loading={loading}
+        />
         <input
           type="text"
           placeholder="Faculty Name"
@@ -775,17 +777,23 @@ function FieldsTable({
   return (
     <div className="border border-gray-300">
       <div className="bg-gray-100 border-b border-gray-300 p-2 flex gap-1">
-        <select
+        <FlexibleSelect
+          options={faculties.map((f: Faculty) => ({ id: f.id, name: f.name }))}
           value={newData.faculty_id || ''}
-          onChange={(e) => setNewData({ ...newData, faculty_id: e.target.value })}
-          className="px-2 py-1 border border-gray-300 text-sm flex-1"
+          onChange={(value) => setNewData({ ...newData, faculty_id: value })}
+          onAddNew={async (name: string) => {
+            const unis = await fetchUniversitiesSafe();
+            if (unis && (unis as any[]).length > 0) {
+              await insertFaculty((unis as any)[0].id, name);
+              await onRefresh();
+            } else {
+              throw new Error('No universities found');
+            }
+          }}
+          placeholder="Select or create Faculty"
           disabled={loading}
-        >
-          <option value="">Select Faculty</option>
-          {faculties.map((f: Faculty) => (
-            <option key={f.id} value={f.id}>{f.name}</option>
-          ))}
-        </select>
+          loading={loading}
+        />
         <input
           type="text"
           placeholder="Field Name"
@@ -930,17 +938,23 @@ function SemestersTable({
   return (
     <div className="border border-gray-300">
       <div className="bg-gray-100 border-b border-gray-300 p-2 flex gap-1">
-        <select
+        <FlexibleSelect
+          options={fields.map((f: Field) => ({ id: f.id, name: f.name }))}
           value={newData.field_id || ''}
-          onChange={(e) => setNewData({ ...newData, field_id: e.target.value })}
-          className="px-2 py-1 border border-gray-300 text-sm flex-1"
+          onChange={(value) => setNewData({ ...newData, field_id: value })}
+          onAddNew={async (name: string) => {
+            const facs = await fetchFacultiesSafe('');
+            if (facs && (facs as any[]).length > 0) {
+              await insertField((facs as any)[0].id, name, 'licence');
+              await onRefresh();
+            } else {
+              throw new Error('No faculties found');
+            }
+          }}
+          placeholder="Select or create Field"
           disabled={loading}
-        >
-          <option value="">Select Field</option>
-          {fields.map((f: Field) => (
-            <option key={f.id} value={f.id}>{f.name}</option>
-          ))}
-        </select>
+          loading={loading}
+        />
         <input
           type="text"
           placeholder="Semester (S1-S6)"
@@ -1083,17 +1097,23 @@ function SubjectsTable({
   return (
     <div className="border border-gray-300">
       <div className="bg-gray-100 border-b border-gray-300 p-2 flex gap-1">
-        <select
+        <FlexibleSelect
+          options={semesters.map((s: Semester) => ({ id: s.id, name: s.name }))}
           value={newData.semester_id || ''}
-          onChange={(e) => setNewData({ ...newData, semester_id: e.target.value })}
-          className="px-2 py-1 border border-gray-300 text-sm flex-1"
+          onChange={(value) => setNewData({ ...newData, semester_id: value })}
+          onAddNew={async (name: string) => {
+            const flds = await fetchFieldsSafe('');
+            if (flds && (flds as any[]).length > 0) {
+              await insertSemester((flds as any)[0].id, name);
+              await onRefresh();
+            } else {
+              throw new Error('No fields found');
+            }
+          }}
+          placeholder="Select or create Semester"
           disabled={loading}
-        >
-          <option value="">Select Semester</option>
-          {semesters.map((s: Semester) => (
-            <option key={s.id} value={s.id}>{s.name}</option>
-          ))}
-        </select>
+          loading={loading}
+        />
         <input
           type="text"
           placeholder="Subject"
@@ -1311,17 +1331,18 @@ function SchoolYearsTable({
   return (
     <div className="border border-gray-300">
       <div className="bg-gray-100 border-b border-gray-300 p-2 flex gap-1">
-        <select
+        <FlexibleSelect
+          options={schoolLevels.map((l: SchoolLevel) => ({ id: l.id, name: l.name }))}
           value={newData.level_id || ''}
-          onChange={(e) => setNewData({ ...newData, level_id: e.target.value })}
-          className="px-2 py-1 border border-gray-300 text-sm flex-1"
+          onChange={(value) => setNewData({ ...newData, level_id: value })}
+          onAddNew={async (name: string) => {
+            await insertSchoolLevel(name);
+            await onRefresh();
+          }}
+          placeholder="Select or create Level"
           disabled={loading}
-        >
-          <option value="">Select Level</option>
-          {schoolLevels.map((l: SchoolLevel) => (
-            <option key={l.id} value={l.id}>{l.name}</option>
-          ))}
-        </select>
+          loading={loading}
+        />
         <input
           type="text"
           placeholder="Year"
@@ -1453,17 +1474,23 @@ function SchoolSubjectsTable({
   return (
     <div className="border border-gray-300">
       <div className="bg-gray-100 border-b border-gray-300 p-2 flex gap-1">
-        <select
+        <FlexibleSelect
+          options={schoolYears.map((y: SchoolYear) => ({ id: y.id, name: y.name }))}
           value={newData.year_id || ''}
-          onChange={(e) => setNewData({ ...newData, year_id: e.target.value })}
-          className="px-2 py-1 border border-gray-300 text-sm flex-1"
+          onChange={(value) => setNewData({ ...newData, year_id: value })}
+          onAddNew={async (name: string) => {
+            const lvls = await fetchSchoolLevelsSafe();
+            if (lvls && (lvls as any[]).length > 0) {
+              await insertSchoolYear((lvls as any)[0].id, name);
+              await onRefresh();
+            } else {
+              throw new Error('No levels found');
+            }
+          }}
+          placeholder="Select or create Year"
           disabled={loading}
-        >
-          <option value="">Select Year</option>
-          {schoolYears.map((y: SchoolYear) => (
-            <option key={y.id} value={y.id}>{y.name}</option>
-          ))}
-        </select>
+          loading={loading}
+        />
         <input
           type="text"
           placeholder="Subject"
