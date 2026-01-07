@@ -7,7 +7,7 @@ import {
   fetchSchoolSubjectsSafe,
   insertPostSafe,
 } from '../../lib/supabaseWithFallback';
-import { Button, Card, Stepper, SelectInput, TextInput, TextArea, Badge } from '../design-system';
+import { Button, Card, Stepper, SelectInput, TextInput, TextArea, Badge, Toast, type ToastMessage } from '../design-system';
 import type { ContentType, SchoolLevel, SchoolYear, SchoolSubject } from '../../types';
 
 interface SchoolFormData {
@@ -33,6 +33,7 @@ export function CreateSchoolPost({ onBack }: CreateSchoolPostProps): React.React
   const [schoolSubjects, setSchoolSubjects] = useState<SchoolSubject[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState<ToastMessage | null>(null);
 
   const [formData, setFormData] = useState<SchoolFormData>({
     level_id: '',
@@ -90,7 +91,10 @@ export function CreateSchoolPost({ onBack }: CreateSchoolPostProps): React.React
     setError('');
     try {
       if (!isSupabaseReady()) {
-        alert('Supabase is not configured. Please set environment variables.');
+        setToast({
+          type: 'error',
+          message: 'Supabase is not configured. Please set environment variables.',
+        });
         setSaving(false);
         return;
       }
@@ -114,8 +118,12 @@ export function CreateSchoolPost({ onBack }: CreateSchoolPostProps): React.React
         created_by: user.id,
       });
 
-      alert('Content created successfully!');
-      onBack();
+      setToast({
+        type: 'success',
+        message: `Content created successfully as ${formData.published ? 'Published' : 'Draft'}!`,
+      });
+      
+      setTimeout(onBack, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -343,6 +351,8 @@ export function CreateSchoolPost({ onBack }: CreateSchoolPostProps): React.React
           </div>
         )}
       </Card>
+
+      <Toast message={toast} onClose={() => setToast(null)} />
     </div>
   );
 }

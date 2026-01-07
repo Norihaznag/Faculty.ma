@@ -9,7 +9,7 @@ import {
   fetchSubjectsSafe,
   insertPostSafe,
 } from '../../lib/supabaseWithFallback';
-import { Button, Card, Stepper, SelectInput, TextInput, TextArea, Badge } from '../design-system';
+import { Button, Card, Stepper, SelectInput, TextInput, TextArea, Badge, Toast, type ToastMessage } from '../design-system';
 import type { ContentType, University, Faculty, Field, Semester, Subject } from '../../types';
 
 interface UniversityFormData {
@@ -39,6 +39,7 @@ export function CreateUniversityPost({ onBack }: CreateUniversityPostProps): Rea
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState<ToastMessage | null>(null);
 
   const [formData, setFormData] = useState<UniversityFormData>({
     university_id: '',
@@ -124,7 +125,10 @@ export function CreateUniversityPost({ onBack }: CreateUniversityPostProps): Rea
     setError('');
     try {
       if (!isSupabaseReady()) {
-        alert('Supabase is not configured. Please set environment variables.');
+        setToast({
+          type: 'error',
+          message: 'Supabase is not configured. Please set environment variables.',
+        });
         setSaving(false);
         return;
       }
@@ -148,8 +152,12 @@ export function CreateUniversityPost({ onBack }: CreateUniversityPostProps): Rea
         created_by: user.id,
       });
 
-      alert('Content created successfully!');
-      onBack();
+      setToast({
+        type: 'success',
+        message: `Content created successfully as ${formData.published ? 'Published' : 'Draft'}!`,
+      });
+      
+      setTimeout(onBack, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -403,6 +411,8 @@ export function CreateUniversityPost({ onBack }: CreateUniversityPostProps): Rea
           </div>
         )}
       </Card>
+
+      <Toast message={toast} onClose={() => setToast(null)} />
     </div>
   );
 }

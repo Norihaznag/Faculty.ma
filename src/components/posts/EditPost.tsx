@@ -16,6 +16,7 @@ interface EditPostProps {
 export function EditPost({ post, onBack, onSave }: EditPostProps): React.ReactNode {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
     title: post.title,
@@ -26,14 +27,36 @@ export function EditPost({ post, onBack, onSave }: EditPostProps): React.ReactNo
     published: post.published,
   });
 
-  const handleSubmit = async (): Promise<void> => {
+  const validateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+
     if (!formData.title.trim()) {
-      setError('Title is required');
-      return;
+      errors.title = 'Title is required';
+    } else if (formData.title.trim().length > 255) {
+      errors.title = 'Title must be 255 characters or less';
     }
 
     if (!formData.description.trim()) {
-      setError('Description is required');
+      errors.description = 'Description is required';
+    } else if (formData.description.trim().length > 2000) {
+      errors.description = 'Description must be 2000 characters or less';
+    }
+
+    if (formData.file_url && !/^https?:\/\/.+/.test(formData.file_url)) {
+      errors.file_url = 'File URL must start with http:// or https://';
+    }
+
+    if (formData.embed_url && !/^https?:\/\/.+/.test(formData.embed_url)) {
+      errors.embed_url = 'Embed URL must start with http:// or https://';
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (): Promise<void> => {
+    if (!validateForm()) {
+      setError('Please fix the errors below');
       return;
     }
 
@@ -111,17 +134,25 @@ export function EditPost({ post, onBack, onSave }: EditPostProps): React.ReactNo
           <TextInput
             label="Title"
             value={formData.title}
-            onChange={(v) => setFormData({ ...formData, title: v })}
+            onChange={(v) => {
+              setFormData({ ...formData, title: v });
+              setValidationErrors({ ...validationErrors, title: '' });
+            }}
             placeholder="Post title"
+            error={validationErrors.title}
             required
           />
 
           <TextArea
             label="Description"
             value={formData.description}
-            onChange={(v) => setFormData({ ...formData, description: v })}
+            onChange={(v) => {
+              setFormData({ ...formData, description: v });
+              setValidationErrors({ ...validationErrors, description: '' });
+            }}
             placeholder="Describe the content..."
             rows={4}
+            error={validationErrors.description}
             required
           />
 
@@ -129,16 +160,24 @@ export function EditPost({ post, onBack, onSave }: EditPostProps): React.ReactNo
             label="File URL (PDF, Word, etc.)"
             type="url"
             value={formData.file_url}
-            onChange={(v) => setFormData({ ...formData, file_url: v })}
+            onChange={(v) => {
+              setFormData({ ...formData, file_url: v });
+              setValidationErrors({ ...validationErrors, file_url: '' });
+            }}
             placeholder="https://..."
+            error={validationErrors.file_url}
           />
 
           <TextInput
             label="Embed URL (Video, Presentation, etc.)"
             type="url"
             value={formData.embed_url}
-            onChange={(v) => setFormData({ ...formData, embed_url: v })}
+            onChange={(v) => {
+              setFormData({ ...formData, embed_url: v });
+              setValidationErrors({ ...validationErrors, embed_url: '' });
+            }}
             placeholder="https://..."
+            error={validationErrors.embed_url}
           />
 
           <label className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100 transition">
