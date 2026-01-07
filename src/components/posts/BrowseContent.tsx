@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, BookOpen, Download } from 'lucide-react';
+import { Eye, BookOpen } from 'lucide-react';
 import { fetchPublishedPostsSafe } from '../../lib/supabaseWithFallback';
 import { Button, Card, Badge, EmptyState } from '../design-system';
 import { PostFilters } from './PostFilters';
