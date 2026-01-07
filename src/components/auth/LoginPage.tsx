@@ -61,25 +61,27 @@ export function LoginPage({ onLogin }: LoginPageProps): React.ReactNode {
           </div>
 
           <div className="space-y-4">
-            <TextInput
-              label="Email"
-              type="email"
-              value={email}
-              onChange={setEmail}
-              onKeyPress={handleKeyPress}
-              placeholder="admin@example.com"
-              required
-            />
+            <div onKeyPress={handleKeyPress}>
+              <TextInput
+                label="Email"
+                type="email"
+                value={email}
+                onChange={setEmail}
+                placeholder="admin@example.com"
+                required
+              />
+            </div>
 
-            <TextInput
-              label="Password"
-              type="password"
-              value={password}
-              onChange={setPassword}
-              onKeyPress={handleKeyPress}
-              placeholder="••••••••"
-              required
-            />
+            <div onKeyPress={handleKeyPress}>
+              <TextInput
+                label="Password"
+                type="password"
+                value={password}
+                onChange={setPassword}
+                placeholder="••••••••"
+                required
+              />
+            </div>
 
             {error && (
               <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">

@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, BookOpen, Search } from 'lucide-react';
+import { Eye, BookOpen, Download } from 'lucide-react';
 import { fetchPublishedPostsSafe } from '../../lib/supabaseWithFallback';
-import { Button, Card, Badge, EmptyState, Modal } from '../design-system';
+import { Button, Card, Badge, EmptyState } from '../design-system';
+import { PostFilters } from './PostFilters';
+import { PostPreviewModal } from './PostPreviewModal';
+import { PostStats } from './PostStats';
 import type { Post } from '../../types';
 
 export function BrowseContent(): React.ReactNode {
@@ -9,17 +12,22 @@ export function BrowseContent(): React.ReactNode {
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [showStats, setShowStats] = useState(false);
+  
+  // Filter states
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'course' | 'exam' | 'summary' | 'td' | 'link'>('all');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'published' | 'draft'>('all');
+  const [contentType, setContentType] = useState('');
+  const [educationType, setEducationType] = useState('');
+  const [publishStatus, setPublishStatus] = useState('');
+  const [sortBy, setSortBy] = useState('newest');
 
   useEffect(() => {
     loadPosts();
   }, []);
 
   useEffect(() => {
-    applyFilters();
-  }, [posts, searchTerm, filterType, filterStatus]);
+    applyFiltersAndSort();
+  }, [posts, searchTerm, contentType, educationType, publishStatus, sortBy]);
 
   const loadPosts = async (): Promise<void> => {
     try {
@@ -32,38 +40,63 @@ export function BrowseContent(): React.ReactNode {
     }
   };
 
-  const applyFilters = (): void => {
+  const applyFiltersAndSort = (): void => {
     let filtered = posts;
 
+    // Search filter
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (p) =>
-          p.title.toLowerCase().includes(term) || p.description.toLowerCase().includes(term)
+          p.title.toLowerCase().includes(term) || 
+          p.description.toLowerCase().includes(term)
       );
     }
 
-    if (filterType !== 'all') {
-      filtered = filtered.filter((p) => p.content_type === filterType);
+    // Content type filter
+    if (contentType) {
+      filtered = filtered.filter((p) => p.content_type === contentType);
     }
 
-    if (filterStatus !== 'all') {
+    // Education type filter
+    if (educationType) {
+      filtered = filtered.filter((p) => p.education_type === educationType);
+    }
+
+    // Publish status filter
+    if (publishStatus) {
       filtered = filtered.filter((p) =>
-        filterStatus === 'published' ? p.published : !p.published
+        publishStatus === 'published' ? p.published : !p.published
       );
     }
+
+    // Sort
+    filtered = filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'oldest':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'title-asc':
+          return a.title.localeCompare(b.title);
+        case 'title-desc':
+          return b.title.localeCompare(a.title);
+        case 'newest':
+        default:
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
 
     setFilteredPosts(filtered);
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-300 border-t-slate-900 mb-4" />
-        <p className="text-slate-600">Loading content...</p>
-      </div>
-    );
-  }
+  const hasActiveFilters = !!(searchTerm || contentType || educationType || publishStatus);
+
+  const clearFilters = (): void => {
+    setSearchTerm('');
+    setContentType('');
+    setEducationType('');
+    setPublishStatus('');
+    setSortBy('newest');
+  };
 
   return (
     <div className="space-y-8">
@@ -72,58 +105,48 @@ export function BrowseContent(): React.ReactNode {
         <p className="text-slate-600">View and manage all uploaded educational materials</p>
       </div>
 
-      {/* Search and Filters */}
-      <div className="space-y-4">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search by title or description..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-200"
-          />
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <div className="flex gap-2">
-            <label className="text-sm font-medium text-slate-700 flex items-center">Type:</label>
-            {(['all', 'course', 'exam', 'summary', 'td', 'link'] as const).map((type) => (
-              <button
-                key={type}
-                onClick={() => setFilterType(type)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                  filterType === type
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                {type === 'all' ? 'All Types' : type.charAt(0).toUpperCase() + type.slice(1)}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex gap-2">
-            <label className="text-sm font-medium text-slate-700 flex items-center">Status:</label>
-            {(['all', 'published', 'draft'] as const).map((status) => (
-              <button
-                key={status}
-                onClick={() => setFilterStatus(status)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                  filterStatus === status
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
+      {/* Stats Toggle */}
+      <div className="flex justify-between items-center">
+        <div />
+        <Button
+          variant={showStats ? 'primary' : 'secondary'}
+          onClick={() => setShowStats(!showStats)}
+          size="sm"
+        >
+          {showStats ? 'Hide' : 'Show'} Analytics
+        </Button>
       </div>
 
+      {/* Analytics Section */}
+      {showStats && (
+        <div className="border-l-4 border-blue-600 pl-6">
+          <PostStats posts={posts} />
+        </div>
+      )}
+
+      {/* Filters */}
+      <PostFilters
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        contentType={contentType}
+        onContentTypeChange={setContentType}
+        educationType={educationType}
+        onEducationTypeChange={setEducationType}
+        publishStatus={publishStatus}
+        onPublishStatusChange={setPublishStatus}
+        sortBy={sortBy}
+        onSortChange={setSortBy}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={clearFilters}
+      />
+
       {/* Content List */}
-      {filteredPosts.length === 0 ? (
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-16">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-300 border-t-slate-900 mb-4" />
+          <p className="text-slate-600">Loading content...</p>
+        </div>
+      ) : filteredPosts.length === 0 ? (
         <EmptyState
           icon={BookOpen}
           title="No content found"
@@ -155,6 +178,13 @@ export function BrowseContent(): React.ReactNode {
                       />
                     </div>
                     <p className="text-sm text-slate-600 line-clamp-2">{post.description}</p>
+                    <p className="text-xs text-slate-500 mt-2">
+                      {new Date(post.created_at).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </p>
                   </div>
                   <button
                     onClick={(e) => {
@@ -173,61 +203,12 @@ export function BrowseContent(): React.ReactNode {
         </div>
       )}
 
-      {/* Post Detail Modal */}
-      <Modal
+      {/* Post Preview Modal */}
+      <PostPreviewModal
         isOpen={selectedPost !== null}
-        title={selectedPost?.title || ''}
+        post={selectedPost}
         onClose={() => setSelectedPost(null)}
-        maxWidth="lg"
-      >
-        {selectedPost && (
-          <div className="space-y-6">
-            <div className="flex gap-2 flex-wrap">
-              <Badge label={selectedPost.content_type} variant="primary" />
-              <Badge
-                label={selectedPost.published ? 'Published' : 'Draft'}
-                variant={selectedPost.published ? 'success' : 'warning'}
-              />
-              <Badge
-                label={selectedPost.education_type === 'university' ? 'University' : 'School'}
-                variant="neutral"
-              />
-            </div>
-
-            <div>
-              <p className="text-sm text-slate-600 font-medium mb-1">Description</p>
-              <p className="text-slate-900">{selectedPost.description}</p>
-            </div>
-
-            {selectedPost.file_url && (
-              <div>
-                <p className="text-sm text-slate-600 font-medium mb-2">File</p>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon={Download}
-                  onClick={() => window.open(selectedPost.file_url, '_blank')}
-                >
-                  Download
-                </Button>
-              </div>
-            )}
-
-            {selectedPost.embed_url && (
-              <div>
-                <p className="text-sm text-slate-600 font-medium mb-2">Embedded Content</p>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  onClick={() => window.open(selectedPost.embed_url, '_blank')}
-                >
-                  View Embed
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
+      />
     </div>
   );
 }

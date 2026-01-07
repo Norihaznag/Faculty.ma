@@ -40,7 +40,7 @@ export function Navigation({ currentView, onViewChange }: NavigationProps): Reac
           />
           <NavButton
             icon={Settings}
-            label="Admin"
+            label="Database"
             active={currentView === 'admin'}
             onClick={() => onViewChange('admin')}
           />

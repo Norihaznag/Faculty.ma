@@ -12,7 +12,6 @@ interface DashboardProps {
 export function Dashboard({ user, onNavigate }: DashboardProps): React.ReactNode {
   const [stats, setStats] = useState({ total: 0, published: 0, draft: 0 });
   const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -20,7 +19,6 @@ export function Dashboard({ user, onNavigate }: DashboardProps): React.ReactNode
 
   const loadData = async (): Promise<void> => {
     try {
-      setLoading(true);
       const data = await fetchPublishedPostsSafe();
       const allPosts = (data as Post[]) || [];
       setPosts(allPosts.slice(0, 5)); // Show recent 5
@@ -32,12 +30,11 @@ export function Dashboard({ user, onNavigate }: DashboardProps): React.ReactNode
     } catch (error) {
       console.error('Error loading stats:', error);
     } finally {
-      setLoading(false);
+      // Removed setLoading(false) - variable was unused
     }
   };
 
   const isAdmin = user.role === 'admin';
-  const isModerator = user.role === 'moderator';
 
   return (
     <div className="space-y-8">

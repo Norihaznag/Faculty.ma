@@ -131,16 +131,16 @@ export function ProPostsTable({
   };
 
   return (
-    <div className="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen p-6">
+    <div className="min-h-screen p-6 bg-white">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-8 border-b border-gray-200 pb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Post Management</h1>
-          <p className="text-gray-600">Create, edit, and manage all educational posts</p>
+          <p className="text-slate-600">Create, edit, and manage all educational posts across universities and schools</p>
         </div>
 
         {/* Toolbar */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6 flex gap-3 flex-wrap items-center">
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 flex gap-3 flex-wrap items-center">
           <button
             onClick={() => setEditingId('new')}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition flex items-center gap-2"
@@ -179,7 +179,7 @@ export function ProPostsTable({
 
         {/* New Post Form */}
         {editingId === 'new' && (
-          <div className="bg-white rounded-lg shadow-sm border border-blue-200 border-l-4 border-l-blue-600 p-6 mb-6">
+          <div className="bg-white rounded-lg border border-blue-200 border-l-4 border-l-blue-600 p-6 mb-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">Create New Post</h3>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <input
@@ -282,7 +282,7 @@ export function ProPostsTable({
         )}
 
         {/* Posts Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -425,22 +425,22 @@ export function ProPostsTable({
 
         {/* Stats Footer */}
         {data.length > 0 && (
-          <div className="mt-6 grid grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg p-4 border border-gray-200">
-              <p className="text-xs text-gray-600 uppercase font-semibold">Total Posts</p>
-              <p className="text-2xl font-bold text-gray-900">{data.length}</p>
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-slate-50 rounded-lg p-4 border border-gray-200">
+              <p className="text-xs text-slate-600 font-medium uppercase tracking-wide">Total Posts</p>
+              <p className="text-3xl font-bold text-slate-900 mt-2">{data.length}</p>
             </div>
-            <div className="bg-white rounded-lg p-4 border border-gray-200">
-              <p className="text-xs text-gray-600 uppercase font-semibold">Published</p>
-              <p className="text-2xl font-bold text-green-600">{data.filter((p: Post) => p.published).length}</p>
+            <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+              <p className="text-xs text-green-600 font-medium uppercase tracking-wide">Published</p>
+              <p className="text-3xl font-bold text-green-700 mt-2">{data.filter((p: Post) => p.published).length}</p>
             </div>
-            <div className="bg-white rounded-lg p-4 border border-gray-200">
-              <p className="text-xs text-gray-600 uppercase font-semibold">Drafts</p>
-              <p className="text-2xl font-bold text-yellow-600">{data.filter((p: Post) => !p.published).length}</p>
+            <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+              <p className="text-xs text-yellow-600 font-medium uppercase tracking-wide">Drafts</p>
+              <p className="text-3xl font-bold text-yellow-700 mt-2">{data.filter((p: Post) => !p.published).length}</p>
             </div>
-            <div className="bg-white rounded-lg p-4 border border-gray-200">
-              <p className="text-xs text-gray-600 uppercase font-semibold">With Files</p>
-              <p className="text-2xl font-bold text-blue-600">{data.filter((p: Post) => p.file_url).length}</p>
+            <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+              <p className="text-xs text-blue-600 font-medium uppercase tracking-wide">With Files</p>
+              <p className="text-3xl font-bold text-blue-700 mt-2">{data.filter((p: Post) => p.file_url).length}</p>
             </div>
           </div>
         )}

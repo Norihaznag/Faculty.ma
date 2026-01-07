@@ -270,7 +270,6 @@ export function AdminPanel(): React.ReactNode {
 
   const getUniversityName = (uniId: string) => universities.find(u => u.id === uniId)?.name || '–';
   const getFacultyName = (facId: string) => faculties.find(f => f.id === facId)?.name || '–';
-  const getFieldName = (fldId: string) => fields.find(f => f.id === fldId)?.name || '–';
   const getSemesterName = (semId: string) => semesters.find(s => s.id === semId)?.name || '–';
   const getSchoolLevelName = (lvlId: string) => schoolLevels.find(l => l.id === lvlId)?.name || '–';
   const getSchoolYearName = (yrId: string) => schoolYears.find(y => y.id === yrId)?.name || '–';
@@ -296,6 +295,8 @@ export function AdminPanel(): React.ReactNode {
     return year ? schoolLevels.find(l => l.id === year.level_id) : undefined;
   };
 
+
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -303,8 +304,8 @@ export function AdminPanel(): React.ReactNode {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-600 text-gray-900">Admin</h1>
-              <p className="text-sm text-gray-500 mt-0.5">Manage your educational content</p>
+              <h1 className="text-3xl font-bold text-gray-900">Database Management</h1>
+              <p className="text-slate-600 mt-1">Configure universities, faculties, fields, subjects and semesters</p>
             </div>
             {error && (
               <div className="flex items-center gap-3 px-4 py-2 bg-red-50 border border-red-200 rounded-lg">
@@ -334,10 +335,10 @@ export function AdminPanel(): React.ReactNode {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-0 text-sm font-500 whitespace-nowrap border-b-2 transition-colors ${
+                className={`py-4 px-0 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                   activeTab === tab.id
-                    ? 'border-gray-900 text-gray-900'
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
+                    ? 'border-slate-900 text-slate-900'
+                    : 'border-transparent text-slate-600 hover:text-slate-900'
                 }`}
               >
                 {tab.label}
@@ -399,6 +400,7 @@ export function AdminPanel(): React.ReactNode {
                 faculties={faculties}
                 getFacultyName={getFacultyName}
                 getUniversityName={getUniversityName}
+                getUniversityByFacultyId={getUniversityByFacultyId}
                 editId={editId}
                 editData={editData}
                 setEditData={setEditData}
@@ -416,9 +418,8 @@ export function AdminPanel(): React.ReactNode {
               <SemestersTable
                 data={semesters}
                 fields={fields}
-                _faculties={faculties}
-                _universities={universities}
-                _getFieldName={getFieldName}
+                faculties={faculties}
+                universities={universities}
                 getFieldBySemesterId={getFieldBySemesterId}
                 getFacultyByFieldId={getFacultyByFieldId}
                 getUniversityByFacultyId={getUniversityByFacultyId}
@@ -440,11 +441,9 @@ export function AdminPanel(): React.ReactNode {
                 data={subjects}
                 semesters={semesters}
                 fields={fields}
-                _faculties={faculties}
-                _universities={universities}
+                faculties={faculties}
+                universities={universities}
                 getSemesterName={getSemesterName}
-                _getFieldName={getFieldName}
-                getFieldBySemesterId={getFieldBySemesterId}
                 getFacultyByFieldId={getFacultyByFieldId}
                 getUniversityByFacultyId={getUniversityByFacultyId}
                 editId={editId}
@@ -750,77 +749,85 @@ function FacultiesTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {data.map((row: Faculty) => (
-              <tr key={row.id} className="hover:bg-gray-50 transition">
-                <td className="px-6 py-4 text-sm text-gray-600">{getUniversityName(row.university_id)}</td>
-                <td className="px-6 py-4">
-                  {editId === row.id ? (
-                    <input
-                      value={editData.name || ''}
-                      onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-1 focus:ring-gray-400"
-                    />
-                  ) : (
-                    <span className="text-sm text-gray-900">{row.name}</span>
-                  )}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex justify-end gap-2">
+            {data.length > 0 ? (
+              data.map((row: Faculty) => (
+                <tr key={row.id} className="hover:bg-gray-50 transition">
+                  <td className="px-6 py-4 text-sm text-gray-600">{getUniversityName(row.university_id)}</td>
+                  <td className="px-6 py-4">
                     {editId === row.id ? (
-                      <>
-                        <button
-                          onClick={async () => {
-                            try {
-                              await updateFaculty(row.id, editData.name);
-                              setEditId(null);
-                              setEditData({});
-                              await onRefresh();
-                            } catch (error) {
-                              onError('Failed');
-                            }
-                          }}
-                          className="px-3 py-1.5 text-xs font-500 text-white bg-green-600 hover:bg-green-700 rounded-lg transition"
-                        >
-                          Save
-                        </button>
-                        <button
-                          onClick={() => setEditId(null)}
-                          className="px-3 py-1.5 text-xs font-500 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
-                        >
-                          Cancel
-                        </button>
-                      </>
+                      <input
+                        value={editData.name || ''}
+                        onChange={(e) => setEditData({ ...editData, name: e.target.value })}
+                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-1 focus:ring-gray-400"
+                      />
                     ) : (
-                      <>
-                        <button
-                          onClick={() => {
-                            setEditId(row.id);
-                            setEditData({ name: row.name });
-                          }}
-                          className="px-3 py-1.5 text-xs font-500 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (!window.confirm('Delete?')) return;
-                            try {
-                              await deleteFaculty(row.id);
-                              await onRefresh();
-                            } catch (error) {
-                              onError('Failed');
-                            }
-                          }}
-                          className="px-3 py-1.5 text-xs font-500 text-white bg-red-600 hover:bg-red-700 rounded-lg transition"
-                        >
-                          Delete
-                        </button>
-                      </>
+                      <span className="text-sm text-gray-900">{row.name}</span>
                     )}
-                  </div>
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex justify-end gap-2">
+                      {editId === row.id ? (
+                        <>
+                          <button
+                            onClick={async () => {
+                              try {
+                                await updateFaculty(row.id, editData.name);
+                                setEditId(null);
+                                setEditData({});
+                                await onRefresh();
+                              } catch (error) {
+                                onError('Failed');
+                              }
+                            }}
+                            className="px-3 py-1.5 text-xs font-500 text-white bg-green-600 hover:bg-green-700 rounded-lg transition"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditId(null)}
+                            className="px-3 py-1.5 text-xs font-500 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => {
+                              setEditId(row.id);
+                              setEditData({ name: row.name });
+                            }}
+                            className="px-3 py-1.5 text-xs font-500 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!window.confirm('Delete?')) return;
+                              try {
+                                await deleteFaculty(row.id);
+                                await onRefresh();
+                              } catch (error) {
+                                onError('Failed');
+                              }
+                            }}
+                            className="px-3 py-1.5 text-xs font-500 text-white bg-red-600 hover:bg-red-700 rounded-lg transition"
+                          >
+                            Delete
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={3} className="px-6 py-12 text-center text-gray-500">
+                  <p className="text-sm">No faculties yet. Add one to get started.</p>
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
@@ -833,6 +840,7 @@ function FieldsTable({
   data,
   faculties,
   getFacultyName,
+  getUniversityByFacultyId,
   editId,
   editData,
   setEditData,
@@ -855,7 +863,13 @@ function FieldsTable({
         <h3 className="text-sm font-600 text-gray-900 mb-4">Add Field</h3>
         <div className="grid grid-cols-4 gap-4">
           <FlexibleSelect
-            options={faculties.map((f: Faculty) => ({ id: f.id, name: f.name }))}
+            options={faculties.map((f: Faculty) => {
+              const university = getUniversityByFacultyId(f.id);
+              return { 
+                id: f.id, 
+                name: university ? `${f.name} (${university.name})` : f.name 
+              };
+            })}
             value={newData.faculty_id || ''}
             onChange={(value) => setNewData({ ...newData, faculty_id: value })}
             onAddNew={async (name: string) => {
@@ -911,9 +925,14 @@ function FieldsTable({
         </div>
       </div>
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="px-6 py-3 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+          <h4 className="text-sm font-500 text-gray-700">Fields</h4>
+          <span className="px-3 py-1 bg-gray-200 text-gray-700 text-xs font-600 rounded-full">{data.length}</span>
+        </div>
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="px-6 py-3 text-left text-xs font-600 text-gray-900">University</th>
               <th className="px-6 py-3 text-left text-xs font-600 text-gray-900">Faculty</th>
               <th className="px-6 py-3 text-left text-xs font-600 text-gray-900">Field</th>
               <th className="px-6 py-3 text-left text-xs font-600 text-gray-900">Type</th>
@@ -923,6 +942,7 @@ function FieldsTable({
           <tbody className="divide-y divide-gray-200">
             {data.map((row: Field) => (
               <tr key={row.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4 text-gray-700 font-500">{getUniversityByFacultyId(row.faculty_id)?.name || '–'}</td>
                 <td className="px-6 py-4 text-gray-700">{getFacultyName(row.faculty_id)}</td>
                 <td className="px-6 py-4">
                   {editId === row.id ? (
@@ -1002,6 +1022,8 @@ function FieldsTable({
 function SemestersTable({
   data,
   fields,
+  faculties,
+  universities,
   getFieldBySemesterId,
   getFacultyByFieldId,
   getUniversityByFacultyId,
@@ -1027,7 +1049,14 @@ function SemestersTable({
         <h3 className="text-sm font-600 text-gray-900 mb-4">Add Semester</h3>
         <div className="grid grid-cols-3 gap-4">
           <FlexibleSelect
-            options={fields.map((f: Field) => ({ id: f.id, name: f.name }))}
+            options={fields.map((f: Field) => {
+              const faculty = faculties.find((fac: Faculty) => fac.id === f.faculty_id);
+              const university = faculty ? universities.find((u: University) => u.id === faculty.university_id) : undefined;
+              return {
+                id: f.id,
+                name: `${f.name}${faculty ? ` (${faculty.name}` : ''}${university ? ` - ${university.name}` : ''}${faculty ? ')' : ''}`
+              };
+            })}
             value={newData.field_id || ''}
             onChange={(value) => setNewData({ ...newData, field_id: value })}
             onAddNew={async (name: string) => {
@@ -1158,7 +1187,7 @@ function SemestersTable({
                   )}
                 </td>
               </tr>
-              );
+              )
             })}
           </tbody>
         </table>
@@ -1172,6 +1201,8 @@ function SubjectsTable({
   data,
   semesters,
   fields,
+  faculties,
+  universities,
   getSemesterName,
   getFacultyByFieldId,
   getUniversityByFacultyId,
@@ -1197,7 +1228,15 @@ function SubjectsTable({
         <h3 className="text-sm font-600 text-gray-900 mb-4">Add Subject</h3>
         <div className="grid grid-cols-3 gap-4">
           <FlexibleSelect
-            options={semesters.map((s: Semester) => ({ id: s.id, name: s.name }))}
+            options={semesters.map((s: Semester) => {
+              const field = fields.find((f: Field) => f.id === s.field_id);
+              const faculty = field ? faculties.find((f: Faculty) => f.id === field.faculty_id) : undefined;
+              const university = faculty ? universities.find((u: University) => u.id === faculty.university_id) : undefined;
+              return {
+                id: s.id,
+                name: `${s.name} (${field?.name || ''}${faculty ? ` - ${faculty.name}` : ''}${university ? ` - ${university.name}` : ''})`
+              };
+            })}
             value={newData.semester_id || ''}
             onChange={(value) => setNewData({ ...newData, semester_id: value })}
             onAddNew={async (name: string) => {
@@ -1331,7 +1370,7 @@ function SubjectsTable({
                   )}
                 </td>
               </tr>
-              );
+              )
             })}
           </tbody>
         </table>
@@ -1633,6 +1672,7 @@ function SchoolYearsTable({
 function SchoolSubjectsTable({
   data,
   schoolYears,
+  schoolLevels,
   getSchoolYearName,
   getLevelByYearId,
   editId,
@@ -1657,7 +1697,13 @@ function SchoolSubjectsTable({
         <h3 className="text-sm font-600 text-gray-900 mb-4">Add Subject</h3>
         <div className="grid grid-cols-3 gap-4">
           <FlexibleSelect
-            options={schoolYears.map((y: SchoolYear) => ({ id: y.id, name: y.name }))}
+            options={schoolYears.map((y: SchoolYear) => {
+              const level = schoolLevels.find((l: SchoolLevel) => l.id === y.level_id);
+              return {
+                id: y.id,
+                name: `${y.name}${level ? ` (${level.name})` : ''}`
+              };
+            })}
             value={newData.year_id || ''}
             onChange={(value) => setNewData({ ...newData, year_id: value })}
             onAddNew={async (name: string) => {
@@ -1784,7 +1830,7 @@ function SchoolSubjectsTable({
                   )}
                 </td>
               </tr>
-              );
+              )
             })}
           </tbody>
         </table>
