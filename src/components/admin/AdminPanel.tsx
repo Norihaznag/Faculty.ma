@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Edit2, Trash2 } from 'lucide-react';
 import { FlexibleSelect } from './FlexibleSelect';
+import { LoadingSpinner } from '../design-system';
 import {
   fetchUniversitiesSafe,
   insertUniversity,
@@ -349,11 +350,7 @@ export function AdminPanel(): React.ReactNode {
       </div>
 
       {/* Loading State */}
-      {loading && (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-sm text-gray-500">Loading...</div>
-        </div>
-      )}
+      {loading && <LoadingSpinner />}
 
       {/* Content */}
       {!loading && (

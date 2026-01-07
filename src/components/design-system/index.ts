@@ -8,3 +8,4 @@ export { SelectInput } from './SelectInput';
 export { TextInput } from './TextInput';
 export { TextArea } from './TextArea';
 export { Toast, type ToastMessage } from './Toast';
+export { LoadingSpinner } from './LoadingSpinner';
