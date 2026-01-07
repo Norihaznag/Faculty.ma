@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { FlexibleSelect } from './FlexibleSelect';
-import { ProPostsTable } from './ProPostsTable';
 import {
   fetchUniversitiesSafe,
   insertUniversity,
@@ -35,6 +34,7 @@ import {
   updateSchoolSubject,
   deleteSchoolSubject,
   fetchAllPostsSafe,
+  deletePostSafe,
 } from '../../lib/supabaseWithFallback';
 import type { Post } from '../../types';
 
@@ -103,7 +103,6 @@ export function AdminPanel(): React.ReactNode {
   const [newData, setNewData] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedPostIds, setSelectedPostIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadAllData();
@@ -204,7 +203,6 @@ export function AdminPanel(): React.ReactNode {
       setSchoolYears(years);
       setSchoolSubjects(subjs);
       setPosts(allPosts as Post[]);
-      setSelectedPostIds(new Set());
       setSchoolYears(years);
       setSchoolSubjects(subjs);
     } catch (err) {
@@ -511,17 +509,8 @@ export function AdminPanel(): React.ReactNode {
 
             {/* Posts */}
             {activeTab === 'posts' && (
-              <ProPostsTable
+              <PostsTable
                 data={posts}
-                subjects={subjects}
-                schoolSubjects={schoolSubjects}
-                selectedIds={selectedPostIds}
-                onSelectId={(id: string) => {
-                  const newSet = new Set(selectedPostIds);
-                  if (newSet.has(id)) newSet.delete(id);
-                  else newSet.add(id);
-                  setSelectedPostIds(newSet);
-                }}
                 onRefresh={loadAllData}
                 onError={showError}
               />
@@ -1838,3 +1827,65 @@ function SchoolSubjectsTable({
     </div>
   );
 }
+
+// Posts Table
+function PostsTable({
+  data,
+  onRefresh,
+  onError,
+}: any) {
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <table className="w-full">
+        <thead className="bg-gray-50 border-b border-gray-200">
+          <tr>
+            <th className="px-6 py-3 text-left text-xs font-600 text-gray-700">Title</th>
+            <th className="px-6 py-3 text-left text-xs font-600 text-gray-700">Type</th>
+            <th className="px-6 py-3 text-left text-xs font-600 text-gray-700">Status</th>
+            <th className="px-6 py-3 text-right text-xs font-600 text-gray-700">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-200">
+          {data.map((post: Post) => (
+            <tr key={post.id} className="hover:bg-gray-50 transition">
+              <td className="px-6 py-4">
+                <span className="text-sm text-gray-900">{post.title}</span>
+              </td>
+              <td className="px-6 py-4">
+                <span className="text-sm text-gray-600">{post.content_type}</span>
+              </td>
+              <td className="px-6 py-4">
+                <span className={`text-xs px-2 py-1 rounded-full font-500 ${
+                  post.published 
+                    ? 'bg-green-100 text-green-700' 
+                    : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {post.published ? 'Published' : 'Draft'}
+                </span>
+              </td>
+              <td className="px-6 py-4 text-right">
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={async () => {
+                      if (!window.confirm('Delete this post?')) return;
+                      try {
+                        await deletePostSafe(post.id);
+                        await onRefresh();
+                      } catch (error) {
+                        onError('Failed to delete');
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-red-600 text-white text-xs font-500 rounded-lg hover:bg-red-700 transition"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+

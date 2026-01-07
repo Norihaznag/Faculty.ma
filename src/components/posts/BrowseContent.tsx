@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, BookOpen } from 'lucide-react';
-import { fetchPublishedPostsSafe } from '../../lib/supabaseWithFallback';
+import { fetchPublishedPostsSafe, deletePostSafe } from '../../lib/supabaseWithFallback';
 import { Button, Card, Badge, EmptyState } from '../design-system';
 import { PostFilters } from './PostFilters';
 import { PostPreviewModal } from './PostPreviewModal';
 import { PostStats } from './PostStats';
+import { EditPost } from './EditPost';
+import { DeleteConfirmationModal } from './DeleteConfirmationModal';
 import type { Post } from '../../types';
 
 export function BrowseContent(): React.ReactNode {
@@ -12,6 +14,9 @@ export function BrowseContent(): React.ReactNode {
   const [filteredPosts, setFilteredPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [deletingPost, setDeletingPost] = useState<Post | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [showStats, setShowStats] = useState(false);
   
   // Filter states
@@ -98,117 +103,172 @@ export function BrowseContent(): React.ReactNode {
     setSortBy('newest');
   };
 
+  const handleDelete = async (): Promise<void> => {
+    if (!deletingPost) return;
+    
+    setDeleting(true);
+    try {
+      await deletePostSafe(deletingPost.id);
+      await loadPosts();
+      setDeletingPost(null);
+      setSelectedPost(null);
+    } catch (error) {
+      console.error('Error deleting post:', error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleEditSave = async (): Promise<void> => {
+    await loadPosts();
+    setEditingPost(null);
+    setSelectedPost(null);
+  };
+
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold text-slate-900 mb-2">Browse Content</h1>
-        <p className="text-slate-600">View and manage all uploaded educational materials</p>
-      </div>
-
-      {/* Stats Toggle */}
-      <div className="flex justify-between items-center">
-        <div />
-        <Button
-          variant={showStats ? 'primary' : 'secondary'}
-          onClick={() => setShowStats(!showStats)}
-          size="sm"
-        >
-          {showStats ? 'Hide' : 'Show'} Analytics
-        </Button>
-      </div>
-
-      {/* Analytics Section */}
-      {showStats && (
-        <div className="border-l-4 border-blue-600 pl-6">
-          <PostStats posts={posts} />
-        </div>
-      )}
-
-      {/* Filters */}
-      <PostFilters
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        contentType={contentType}
-        onContentTypeChange={setContentType}
-        educationType={educationType}
-        onEducationTypeChange={setEducationType}
-        publishStatus={publishStatus}
-        onPublishStatusChange={setPublishStatus}
-        sortBy={sortBy}
-        onSortChange={setSortBy}
-        hasActiveFilters={hasActiveFilters}
-        onClearFilters={clearFilters}
-      />
-
-      {/* Content List */}
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-16">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-300 border-t-slate-900 mb-4" />
-          <p className="text-slate-600">Loading content...</p>
-        </div>
-      ) : filteredPosts.length === 0 ? (
-        <EmptyState
-          icon={BookOpen}
-          title="No content found"
-          description={
-            posts.length === 0 ? 'Start creating content to see it here' : 'Try adjusting your filters'
-          }
+      {/* Show EditPost when editing */}
+      {editingPost ? (
+        <EditPost
+          post={editingPost}
+          onBack={() => setEditingPost(null)}
+          onSave={handleEditSave}
         />
       ) : (
-        <div className="space-y-3">
-          <p className="text-sm text-slate-600">
-            Showing {filteredPosts.length} of {posts.length} items
-          </p>
-          <div className="space-y-2">
-            {filteredPosts.map((post) => (
-              <Card
-                key={post.id}
-                className="p-4 cursor-pointer"
-                interactive
-                onClick={() => setSelectedPost(post)}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <h3 className="font-semibold text-slate-900">{post.title}</h3>
-                      <Badge label={post.content_type} variant="primary" />
-                      <Badge
-                        label={post.published ? 'Published' : 'Draft'}
-                        variant={post.published ? 'success' : 'warning'}
-                      />
-                    </div>
-                    <p className="text-sm text-slate-600 line-clamp-2">{post.description}</p>
-                    <p className="text-xs text-slate-500 mt-2">
-                      {new Date(post.created_at).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </p>
-                  </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedPost(post);
-                    }}
-                    className="ml-4 p-2 hover:bg-slate-100 rounded-lg transition"
-                    title="View details"
-                  >
-                    <Eye className="w-5 h-5 text-slate-600" />
-                  </button>
-                </div>
-              </Card>
-            ))}
+        <>
+          <div>
+            <h1 className="text-4xl font-bold text-slate-900 mb-2">Browse Content</h1>
+            <p className="text-slate-600">View and manage all uploaded educational materials</p>
           </div>
-        </div>
-      )}
 
-      {/* Post Preview Modal */}
-      <PostPreviewModal
-        isOpen={selectedPost !== null}
-        post={selectedPost}
-        onClose={() => setSelectedPost(null)}
-      />
+          {/* Stats Toggle */}
+          <div className="flex justify-between items-center">
+            <div />
+            <Button
+              variant={showStats ? 'primary' : 'secondary'}
+              onClick={() => setShowStats(!showStats)}
+              size="sm"
+            >
+              {showStats ? 'Hide' : 'Show'} Analytics
+            </Button>
+          </div>
+
+          {/* Analytics Section */}
+          {showStats && (
+            <div className="border-l-4 border-blue-600 pl-6">
+              <PostStats posts={posts} />
+            </div>
+          )}
+
+          {/* Filters */}
+          <PostFilters
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            contentType={contentType}
+            onContentTypeChange={setContentType}
+            educationType={educationType}
+            onEducationTypeChange={setEducationType}
+            publishStatus={publishStatus}
+            onPublishStatusChange={setPublishStatus}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            hasActiveFilters={hasActiveFilters}
+            onClearFilters={clearFilters}
+          />
+
+          {/* Content List */}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <div className="animate-spin rounded-full h-12 w-12 border-4 border-slate-300 border-t-slate-900 mb-4" />
+              <p className="text-slate-600">Loading content...</p>
+            </div>
+          ) : filteredPosts.length === 0 ? (
+            <EmptyState
+              icon={BookOpen}
+              title="No content found"
+              description={
+                posts.length === 0 ? 'Start creating content to see it here' : 'Try adjusting your filters'
+              }
+            />
+          ) : (
+            <div className="space-y-3">
+              <p className="text-sm text-slate-600">
+                Showing {filteredPosts.length} of {posts.length} items
+              </p>
+              <div className="space-y-2">
+                {filteredPosts.map((post) => (
+                  <Card
+                    key={post.id}
+                    className="p-4 cursor-pointer"
+                    interactive
+                    onClick={() => setSelectedPost(post)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <h3 className="font-semibold text-slate-900">{post.title}</h3>
+                          <Badge label={post.content_type} variant="primary" />
+                          <Badge
+                            label={post.published ? 'Published' : 'Draft'}
+                            variant={post.published ? 'success' : 'warning'}
+                          />
+                        </div>
+                        <p className="text-sm text-slate-600 line-clamp-2">{post.description}</p>
+                        <p className="text-xs text-slate-500 mt-2">
+                          {new Date(post.created_at).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedPost(post);
+                        }}
+                        className="ml-4 p-2 hover:bg-slate-100 rounded-lg transition"
+                        title="View details"
+                      >
+                        <Eye className="w-5 h-5 text-slate-600" />
+                      </button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Post Preview Modal */}
+          <PostPreviewModal
+            isOpen={selectedPost !== null}
+            post={selectedPost}
+            onClose={() => setSelectedPost(null)}
+            onEdit={() => {
+              if (selectedPost) {
+                setEditingPost(selectedPost);
+                setSelectedPost(null);
+              }
+            }}
+            onDelete={() => {
+              if (selectedPost) {
+                setDeletingPost(selectedPost);
+                setSelectedPost(null);
+              }
+            }}
+          />
+
+          {/* Delete Confirmation Modal */}
+          <DeleteConfirmationModal
+            isOpen={deletingPost !== null}
+            title="Delete Post"
+            message={`Are you sure you want to delete "${deletingPost?.title}"? This action cannot be undone.`}
+            onConfirm={handleDelete}
+            onCancel={() => setDeletingPost(null)}
+            loading={deleting}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -59,7 +59,7 @@ const navItems: NavItem[] = [
     id: 'admin',
     label: 'Admin Panel',
     icon: Settings,
-    roles: ['admin'],
+    roles: ['admin', 'moderator'],
   },
 ];
 

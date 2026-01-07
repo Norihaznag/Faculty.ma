@@ -34,7 +34,7 @@ export function Dashboard({ user, onNavigate }: DashboardProps): React.ReactNode
     }
   };
 
-  const isAdmin = user.role === 'admin';
+  const isAdmin = ['admin', 'moderator'].includes(user.role);
 
   return (
     <div className="space-y-8">
