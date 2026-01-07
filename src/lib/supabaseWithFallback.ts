@@ -381,8 +381,16 @@ export const updateUniversity = async (id: string, name: string, city: string) =
 
 export const deleteUniversity = async (id: string) => {
   if (!isSupabaseReady()) throw new Error('Supabase not configured');
+  
+  console.log('Deleting university with id:', id);
   const { error } = await supabase.from('universities').delete().eq('id', id);
-  if (error) throw error;
+  
+  if (error) {
+    console.error('Delete error from Supabase:', error);
+    throw error;
+  }
+  
+  console.log('Successfully deleted university:', id);
 };
 
 // Faculties

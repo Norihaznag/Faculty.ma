@@ -39,27 +39,42 @@ CREATE POLICY "Admins can view all users" ON users FOR SELECT USING (is_admin())
 CREATE POLICY "Anyone can view universities" ON universities FOR SELECT USING (true);
 CREATE POLICY "Only admins can insert universities" ON universities FOR INSERT WITH CHECK (is_admin());
 CREATE POLICY "Only admins can update universities" ON universities FOR UPDATE USING (is_admin());
+CREATE POLICY "Only admins can delete universities" ON universities FOR DELETE USING (is_admin());
 
 CREATE POLICY "Anyone can view faculties" ON faculties FOR SELECT USING (true);
 CREATE POLICY "Only admins can insert faculties" ON faculties FOR INSERT WITH CHECK (is_admin());
 CREATE POLICY "Only admins can update faculties" ON faculties FOR UPDATE USING (is_admin());
+CREATE POLICY "Only admins can delete faculties" ON faculties FOR DELETE USING (is_admin());
 
 CREATE POLICY "Anyone can view fields" ON fields FOR SELECT USING (true);
 CREATE POLICY "Only admins can insert fields" ON fields FOR INSERT WITH CHECK (is_admin());
 CREATE POLICY "Only admins can update fields" ON fields FOR UPDATE USING (is_admin());
+CREATE POLICY "Only admins can delete fields" ON fields FOR DELETE USING (is_admin());
 
 CREATE POLICY "Anyone can view semesters" ON semesters FOR SELECT USING (true);
 CREATE POLICY "Only admins can insert semesters" ON semesters FOR INSERT WITH CHECK (is_admin());
 CREATE POLICY "Only admins can update semesters" ON semesters FOR UPDATE USING (is_admin());
+CREATE POLICY "Only admins can delete semesters" ON semesters FOR DELETE USING (is_admin());
 
 CREATE POLICY "Anyone can view subjects" ON subjects FOR SELECT USING (true);
 CREATE POLICY "Only admins can insert subjects" ON subjects FOR INSERT WITH CHECK (is_admin());
 CREATE POLICY "Only admins can update subjects" ON subjects FOR UPDATE USING (is_admin());
+CREATE POLICY "Only admins can delete subjects" ON subjects FOR DELETE USING (is_admin());
 
 CREATE POLICY "Anyone can view school levels" ON school_levels FOR SELECT USING (true);
+CREATE POLICY "Only admins can insert school levels" ON school_levels FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "Only admins can update school levels" ON school_levels FOR UPDATE USING (is_admin());
+CREATE POLICY "Only admins can delete school levels" ON school_levels FOR DELETE USING (is_admin());
+
 CREATE POLICY "Anyone can view school years" ON school_years FOR SELECT USING (true);
+CREATE POLICY "Only admins can insert school years" ON school_years FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "Only admins can update school years" ON school_years FOR UPDATE USING (is_admin());
+CREATE POLICY "Only admins can delete school years" ON school_years FOR DELETE USING (is_admin());
+
 CREATE POLICY "Anyone can view school subjects" ON school_subjects FOR SELECT USING (true);
 CREATE POLICY "Only admins can insert school subjects" ON school_subjects FOR INSERT WITH CHECK (is_admin());
+CREATE POLICY "Only admins can update school subjects" ON school_subjects FOR UPDATE USING (is_admin());
+CREATE POLICY "Only admins can delete school subjects" ON school_subjects FOR DELETE USING (is_admin());
 
 -- Posts policies
 CREATE POLICY "Anyone can view published posts" ON posts FOR SELECT USING (published = true);

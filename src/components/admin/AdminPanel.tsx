@@ -257,13 +257,24 @@ export function AdminPanel(): React.ReactNode {
   };
 
   const handleDeleteUniversity = async (id: string) => {
-    if (!window.confirm('Delete this university and all associated data?')) return;
+    const confirmed = window.confirm('Delete this university and all associated data?');
+    console.log('Delete confirmation:', confirmed, 'for id:', id);
+    if (!confirmed) return;
+    
     try {
       setLoading(true);
+      console.log('Attempting to delete university:', id);
       await deleteUniversity(id);
+      console.log('Delete successful for:', id);
+      
+      // Force refresh all data from database
+      await new Promise(resolve => setTimeout(resolve, 500)); // Brief delay for DB sync
       await loadAllData();
+      console.log('Data reloaded after delete');
     } catch (error) {
-      showError(error instanceof Error ? error.message : 'Failed to delete');
+      const errorMsg = error instanceof Error ? error.message : 'Failed to delete';
+      console.error('Delete error:', errorMsg);
+      showError(errorMsg);
     } finally {
       setLoading(false);
     }
