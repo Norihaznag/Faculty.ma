@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Eye, EyeOff, Edit2, Trash2 } from 'lucide-react';
 import { FlexibleSelect } from './FlexibleSelect';
 import {
   fetchUniversitiesSafe,
@@ -35,6 +36,7 @@ import {
   deleteSchoolSubject,
   fetchAllPostsSafe,
   deletePostSafe,
+  updatePostSafe,
 } from '../../lib/supabaseWithFallback';
 import type { Post } from '../../types';
 
@@ -1831,60 +1833,372 @@ function SchoolSubjectsTable({
 // Posts Table
 function PostsTable({
   data,
-  onRefresh,
   onError,
 }: any) {
+  const [posts, setPosts] = React.useState<Post[]>(data);
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState('');
+  const [typeFilter, setTypeFilter] = React.useState('');
+  const [sortBy, setSortBy] = React.useState('newest');
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [editForm, setEditForm] = React.useState<any>({});
+  const [deleting, setDeleting] = React.useState<string | null>(null);
+  const [updating, setUpdating] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setPosts(data);
+  }, [data]);
+
+  // Filter and sort posts
+  const filteredPosts = React.useMemo(() => {
+    let filtered = [...posts];
+
+    // Search
+    if (searchTerm) {
+      filtered = filtered.filter(p => 
+        p.title.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Status filter
+    if (statusFilter) {
+      filtered = filtered.filter(p => 
+        statusFilter === 'published' ? p.published : !p.published
+      );
+    }
+
+    // Type filter
+    if (typeFilter) {
+      filtered = filtered.filter(p => p.content_type === typeFilter);
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'oldest':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'title':
+          return a.title.localeCompare(b.title);
+        case 'newest':
+        default:
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+
+    return filtered;
+  }, [posts, searchTerm, statusFilter, typeFilter, sortBy]);
+
+  const handleTogglePublish = async (id: string, currentStatus: boolean) => {
+    setUpdating(id);
+    try {
+      await updatePostSafe(id, { published: !currentStatus });
+      setPosts(posts.map(p => 
+        p.id === id ? { ...p, published: !currentStatus } : p
+      ));
+    } catch (error) {
+      onError('Failed to update post status');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleBulkPublish = async (published: boolean) => {
+    if (selectedIds.size === 0) {
+      onError('Select posts first');
+      return;
+    }
+
+    try {
+      for (const id of selectedIds) {
+        await updatePostSafe(id, { published });
+      }
+      setPosts(posts.map(p => 
+        selectedIds.has(p.id) ? { ...p, published } : p
+      ));
+      setSelectedIds(new Set());
+    } catch (error) {
+      onError('Failed to update posts');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this post?')) return;
+    
+    setDeleting(id);
+    try {
+      await deletePostSafe(id);
+      setPosts(posts.filter(p => p.id !== id));
+    } catch (error) {
+      onError('Failed to delete post');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const handleEditSave = async (id: string) => {
+    if (!editForm.title?.trim()) {
+      onError('Title is required');
+      return;
+    }
+
+    setUpdating(id);
+    try {
+      await updatePostSafe(id, {
+        title: editForm.title.trim(),
+        description: editForm.description?.trim(),
+        content_type: editForm.content_type,
+      });
+      setPosts(posts.map(p => 
+        p.id === id ? { ...p, ...editForm } : p
+      ));
+      setEditingId(null);
+    } catch (error) {
+      onError('Failed to save post');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-      <table className="w-full">
-        <thead className="bg-gray-50 border-b border-gray-200">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-600 text-gray-700">Title</th>
-            <th className="px-6 py-3 text-left text-xs font-600 text-gray-700">Type</th>
-            <th className="px-6 py-3 text-left text-xs font-600 text-gray-700">Status</th>
-            <th className="px-6 py-3 text-right text-xs font-600 text-gray-700">Actions</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200">
-          {data.map((post: Post) => (
-            <tr key={post.id} className="hover:bg-gray-50 transition">
-              <td className="px-6 py-4">
-                <span className="text-sm text-gray-900">{post.title}</span>
-              </td>
-              <td className="px-6 py-4">
-                <span className="text-sm text-gray-600">{post.content_type}</span>
-              </td>
-              <td className="px-6 py-4">
-                <span className={`text-xs px-2 py-1 rounded-full font-500 ${
-                  post.published 
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-gray-100 text-gray-700'
-                }`}>
-                  {post.published ? 'Published' : 'Draft'}
-                </span>
-              </td>
-              <td className="px-6 py-4 text-right">
-                <div className="flex justify-end gap-2">
-                  <button
-                    onClick={async () => {
-                      if (!window.confirm('Delete this post?')) return;
-                      try {
-                        await deletePostSafe(post.id);
-                        await onRefresh();
-                      } catch (error) {
-                        onError('Failed to delete');
-                      }
-                    }}
-                    className="px-3 py-1.5 bg-red-600 text-white text-xs font-500 rounded-lg hover:bg-red-700 transition"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </td>
+    <div className="space-y-4">
+      {/* Filter and Search Bar */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <input
+            type="text"
+            placeholder="Search posts..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+          />
+          
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+          >
+            <option value="">All Status</option>
+            <option value="published">Published</option>
+            <option value="draft">Draft</option>
+          </select>
+
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+          >
+            <option value="">All Types</option>
+            <option value="course">Course</option>
+            <option value="exam">Exam</option>
+            <option value="td">TD</option>
+            <option value="summary">Summary</option>
+            <option value="link">Link</option>
+          </select>
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="title">Title A-Z</option>
+          </select>
+        </div>
+
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <span className="text-sm font-500 text-blue-900">{selectedIds.size} selected</span>
+            {(() => {
+              const selectedPosts = posts.filter(p => selectedIds.has(p.id));
+              const allPublished = selectedPosts.every(p => p.published);
+              const allDraft = selectedPosts.every(p => !p.published);
+              
+              return (
+                <>
+                  {(allDraft || !allPublished) && (
+                    <button
+                      onClick={() => handleBulkPublish(true)}
+                      className="px-3 py-1.5 text-xs font-500 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                    >
+                      Publish
+                    </button>
+                  )}
+                  {(allPublished || !allDraft) && (
+                    <button
+                      onClick={() => handleBulkPublish(false)}
+                      className="px-3 py-1.5 text-xs font-500 bg-gray-600 text-white rounded hover:bg-gray-700 transition"
+                    >
+                      Draft
+                    </button>
+                  )}
+                </>
+              );
+            })()}
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="px-3 py-1.5 text-xs font-500 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Posts Table */}
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="px-4 py-3 text-left">
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size === filteredPosts.length && filteredPosts.length > 0}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedIds(new Set(filteredPosts.map(p => p.id)));
+                    } else {
+                      setSelectedIds(new Set());
+                    }
+                  }}
+                  className="rounded border-gray-300"
+                />
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-600 text-gray-700">Title</th>
+              <th className="px-6 py-3 text-left text-xs font-600 text-gray-700">Type</th>
+              <th className="px-6 py-3 text-left text-xs font-600 text-gray-700">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-600 text-gray-700">Created</th>
+              <th className="px-6 py-3 text-right text-xs font-600 text-gray-700">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {filteredPosts.map((post) => (
+              <tr key={post.id} className="hover:bg-gray-50 transition">
+                <td className="px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(post.id)}
+                    onChange={(e) => {
+                      const newSet = new Set(selectedIds);
+                      if (e.target.checked) {
+                        newSet.add(post.id);
+                      } else {
+                        newSet.delete(post.id);
+                      }
+                      setSelectedIds(newSet);
+                    }}
+                    className="rounded border-gray-300"
+                  />
+                </td>
+                <td className="px-6 py-4">
+                  {editingId === post.id ? (
+                    <input
+                      type="text"
+                      value={editForm.title}
+                      onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                      className="px-2 py-1 border border-gray-200 rounded text-sm w-full"
+                    />
+                  ) : (
+                    <span className="text-sm text-gray-900 font-500">{post.title}</span>
+                  )}
+                </td>
+                <td className="px-6 py-4">
+                  {editingId === post.id ? (
+                    <select
+                      value={editForm.content_type}
+                      onChange={(e) => setEditForm({ ...editForm, content_type: e.target.value })}
+                      className="px-2 py-1 border border-gray-200 rounded text-sm"
+                    >
+                      <option value="course">Course</option>
+                      <option value="exam">Exam</option>
+                      <option value="td">TD</option>
+                      <option value="summary">Summary</option>
+                      <option value="link">Link</option>
+                    </select>
+                  ) : (
+                    <span className="text-xs px-2 py-1 rounded bg-blue-100 text-blue-700">{post.content_type}</span>
+                  )}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-2 py-1 rounded-full font-500 ${
+                      post.published 
+                        ? 'bg-green-100 text-green-700' 
+                        : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {post.published ? 'Published' : 'Draft'}
+                    </span>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-xs text-gray-500">
+                  {new Date(post.created_at).toLocaleDateString()}
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="flex justify-end gap-2">
+                    {editingId === post.id ? (
+                      <>
+                        <button
+                          onClick={() => handleEditSave(post.id)}
+                          disabled={updating === post.id}
+                          className="px-3 py-1.5 bg-green-600 text-white text-xs font-500 rounded-lg hover:bg-green-700 transition disabled:opacity-50"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-500 rounded-lg hover:bg-gray-200 transition"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleTogglePublish(post.id, post.published)}
+                          disabled={updating === post.id}
+                          className="px-3 py-1.5 text-gray-700 hover:text-gray-900 transition disabled:opacity-50"
+                          title={post.published ? 'Hide post' : 'Publish post'}
+                        >
+                          {post.published ? <Eye size={18} /> : <EyeOff size={18} />}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingId(post.id);
+                            setEditForm({ 
+                              title: post.title,
+                              description: post.description,
+                              content_type: post.content_type 
+                            });
+                          }}
+                          className="px-3 py-1.5 text-blue-600 hover:text-blue-700 transition"
+                          title="Edit post"
+                        >
+                          <Edit2 size={18} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(post.id)}
+                          disabled={deleting === post.id}
+                          className="px-3 py-1.5 text-red-600 hover:text-red-700 transition disabled:opacity-50"
+                          title="Delete post"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {filteredPosts.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          No posts found
+        </div>
+      )}
     </div>
   );
 }
