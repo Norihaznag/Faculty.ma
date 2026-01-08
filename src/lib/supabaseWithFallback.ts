@@ -1,6 +1,6 @@
 import { isSupabaseReady, supabase } from './supabase';
 import * as dummy from './dummyData';
-import { User } from '../types';
+import { User, ResourceRequest, ContentPack, ContentPackItem } from '../types';
 
 // ============================================
 // Validation Helpers
@@ -755,6 +755,230 @@ export const bulkDeletePostsSafe = async (ids: string[]) => {
     if (error) throw error;
   } catch (error) {
     console.error('Error bulk deleting posts:', error);
+    throw error;
+  }
+};
+
+// ============================================
+// RESOURCE REQUESTS (Phase 1)
+// ============================================
+
+export const fetchResourceRequestsSafe = async (): Promise<ResourceRequest[]> => {
+  if (!isSupabaseReady()) {
+    console.log('Using empty resource requests (Supabase not configured)');
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('resource_requests')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.log('Error fetching resource requests:', error);
+      return [];
+    }
+
+    return (data as ResourceRequest[]) || [];
+  } catch (error) {
+    console.log('Error fetching resource requests:', error);
+    return [];
+  }
+};
+
+export const updateResourceRequestSafe = async (
+  id: string,
+  updates: Partial<ResourceRequest>
+) => {
+  if (!isSupabaseReady()) throw new Error('Supabase not configured');
+
+  try {
+    const { data, error } = await supabase
+      .from('resource_requests')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating resource request:', error);
+    throw error;
+  }
+};
+
+export const deleteResourceRequestSafe = async (id: string) => {
+  if (!isSupabaseReady()) throw new Error('Supabase not configured');
+
+  try {
+    const { error } = await supabase
+      .from('resource_requests')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error deleting resource request:', error);
+    throw error;
+  }
+};
+
+// ============================================
+// CONTENT PACKS (Phase 2)
+// ============================================
+
+export const fetchContentPacksSafe = async (): Promise<ContentPack[]> => {
+  if (!isSupabaseReady()) {
+    console.log('Using empty content packs (Supabase not configured)');
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('content_packs')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.log('Error fetching content packs:', error);
+      return [];
+    }
+
+    return (data as ContentPack[]) || [];
+  } catch (error) {
+    console.log('Error fetching content packs:', error);
+    return [];
+  }
+};
+
+export const fetchContentPackItemsSafe = async (packId: string): Promise<ContentPackItem[]> => {
+  if (!isSupabaseReady()) {
+    console.log('Using empty pack items (Supabase not configured)');
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('content_pack_items')
+      .select('*')
+      .eq('pack_id', packId)
+      .order('position', { ascending: true });
+
+    if (error) {
+      console.log('Error fetching content pack items:', error);
+      return [];
+    }
+
+    return (data as ContentPackItem[]) || [];
+  } catch (error) {
+    console.log('Error fetching content pack items:', error);
+    return [];
+  }
+};
+
+export const insertContentPackSafe = async (pack: {
+  title: string;
+  description?: string;
+  education_type?: string;
+  status?: string;
+  visibility?: string;
+  created_by: string;
+}) => {
+  if (!isSupabaseReady()) throw new Error('Supabase not configured');
+
+  const validatedTitle = validateText(pack.title, 'Pack title');
+
+  try {
+    const { data, error } = await supabase
+      .from('content_packs')
+      .insert([
+        {
+          title: validatedTitle,
+          description: pack.description?.trim() || null,
+          education_type: pack.education_type || null,
+          status: pack.status || 'draft',
+          visibility: pack.visibility || 'public',
+          created_by: pack.created_by,
+        },
+      ])
+      .select();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error inserting content pack:', error);
+    throw error;
+  }
+};
+
+export const updateContentPackSafe = async (
+  id: string,
+  updates: Partial<ContentPack>
+) => {
+  if (!isSupabaseReady()) throw new Error('Supabase not configured');
+
+  try {
+    const { data, error } = await supabase
+      .from('content_packs')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating content pack:', error);
+    throw error;
+  }
+};
+
+export const deleteContentPackSafe = async (id: string) => {
+  if (!isSupabaseReady()) throw new Error('Supabase not configured');
+
+  try {
+    const { error } = await supabase
+      .from('content_packs')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error deleting content pack:', error);
+    throw error;
+  }
+};
+
+export const addContentPackItemSafe = async (packId: string, postId: string, position: number = 0) => {
+  if (!isSupabaseReady()) throw new Error('Supabase not configured');
+
+  try {
+    const { data, error } = await supabase
+      .from('content_pack_items')
+      .insert([{ pack_id: packId, post_id: postId, position }])
+      .select();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error adding pack item:', error);
+    throw error;
+  }
+};
+
+export const removeContentPackItemSafe = async (packId: string, postId: string) => {
+  if (!isSupabaseReady()) throw new Error('Supabase not configured');
+
+  try {
+    const { error } = await supabase
+      .from('content_pack_items')
+      .delete()
+      .eq('pack_id', packId)
+      .eq('post_id', postId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error removing pack item:', error);
     throw error;
   }
 };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Edit2, Trash2 } from 'lucide-react';
 import { FlexibleSelect } from './FlexibleSelect';
-import { LoadingSpinner } from '../design-system';
+import { LoadingSpinner, Modal } from '../design-system';
 import { cachedFetch, invalidateCache, invalidateCaches } from '../../lib/cache';
 import {
   fetchUniversitiesSafe,
@@ -39,8 +39,18 @@ import {
   fetchAllPostsSafe,
   deletePostSafe,
   updatePostSafe,
+  fetchResourceRequestsSafe,
+  updateResourceRequestSafe,
+  deleteResourceRequestSafe,
+  fetchContentPacksSafe,
+  fetchContentPackItemsSafe,
+  insertContentPackSafe,
+  updateContentPackSafe,
+  deleteContentPackSafe,
+  addContentPackItemSafe,
+  removeContentPackItemSafe,
 } from '../../lib/supabaseWithFallback';
-import type { Post } from '../../types';
+import type { Post, ResourceRequest, ContentPack, ContentPackItem, User } from '../../types';
 
 interface University {
   id: string;
@@ -90,7 +100,7 @@ interface SchoolSubject {
   name: string;
 }
 
-export function AdminPanel(): React.ReactNode {
+export function AdminPanel({ user }: { user: User }): React.ReactNode {
   const [activeTab, setActiveTab] = useState('universities');
   const [universities, setUniversities] = useState<University[]>([]);
   const [faculties, setFaculties] = useState<Faculty[]>([]);
@@ -101,6 +111,8 @@ export function AdminPanel(): React.ReactNode {
   const [schoolYears, setSchoolYears] = useState<SchoolYear[]>([]);
   const [schoolSubjects, setSchoolSubjects] = useState<SchoolSubject[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [resourceRequests, setResourceRequests] = useState<ResourceRequest[]>([]);
+  const [contentPacks, setContentPacks] = useState<ContentPack[]>([]);
 
   const [editId, setEditId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Record<string, string>>({});
@@ -121,11 +133,23 @@ export function AdminPanel(): React.ReactNode {
       
       if (skipCache) {
         // Invalidate cache when refreshing after create/update/delete
-        invalidateCaches('universities', 'faculties', 'fields', 'semesters', 'subjects', 'schoolLevels', 'schoolYears', 'schoolSubjects', 'allPosts');
+        invalidateCaches(
+          'universities',
+          'faculties',
+          'fields',
+          'semesters',
+          'subjects',
+          'schoolLevels',
+          'schoolYears',
+          'schoolSubjects',
+          'allPosts',
+          'resourceRequests',
+          'contentPacks'
+        );
       }
 
       // Use cached fetch to reduce API calls by 80-95%
-      const [unis, facs, flds, sems, subs, levels, years, subjs] = await Promise.all([
+      const [unis, facs, flds, sems, subs, levels, years, subjs, requests, packs] = await Promise.all([
         cachedFetch('universities', () => fetchUniversitiesSafe(), 5 * 60 * 1000), // Cache 5 min
         (async () => {
           const result: Faculty[] = [];
@@ -203,6 +227,8 @@ export function AdminPanel(): React.ReactNode {
           }
           return result;
         })(),
+        cachedFetch('resourceRequests', () => fetchResourceRequestsSafe(), 2 * 60 * 1000),
+        cachedFetch('contentPacks', () => fetchContentPacksSafe(), 2 * 60 * 1000),
       ]);
 
       const allPosts = await cachedFetch('allPosts', () => fetchAllPostsSafe(1, 100), 5 * 60 * 1000); // Cache first 100 posts
@@ -216,8 +242,8 @@ export function AdminPanel(): React.ReactNode {
       setSchoolYears(years);
       setSchoolSubjects(subjs);
       setPosts(allPosts as Post[]);
-      setSchoolYears(years);
-      setSchoolSubjects(subjs);
+      setResourceRequests(requests);
+      setContentPacks(packs);
     } catch (err) {
       setError('Failed to load data. Please try again.');
       console.error('Error loading data:', err);
@@ -360,6 +386,8 @@ export function AdminPanel(): React.ReactNode {
               { id: 'schoolYears', label: 'Years' },
               { id: 'schoolSubjects', label: 'S. Subjects' },
               { id: 'posts', label: 'Posts' },
+              { id: 'requests', label: 'Requests' },
+              { id: 'packs', label: 'Packs' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -538,6 +566,24 @@ export function AdminPanel(): React.ReactNode {
             {activeTab === 'posts' && (
               <PostsTable
                 data={posts}
+                onRefresh={loadAllData}
+                onError={showError}
+              />
+            )}
+
+            {activeTab === 'requests' && (
+              <ResourceRequestsTable
+                data={resourceRequests}
+                onRefresh={loadAllData}
+                onError={showError}
+              />
+            )}
+
+            {activeTab === 'packs' && (
+              <ContentPacksTable
+                data={contentPacks}
+                posts={posts}
+                createdBy={user.id}
                 onRefresh={loadAllData}
                 onError={showError}
               />
@@ -2224,6 +2270,556 @@ function PostsTable({
           No posts found
         </div>
       )}
+    </div>
+  );
+}
+
+function ResourceRequestsTable({
+  data,
+  onRefresh,
+  onError,
+}: {
+  data: ResourceRequest[];
+  onRefresh: (skipCache?: boolean) => void;
+  onError: (message: string) => void;
+}) {
+  const [requests, setRequests] = React.useState<ResourceRequest[]>(data);
+  const [searchTerm, setSearchTerm] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState('');
+  const [updating, setUpdating] = React.useState<string | null>(null);
+  const [deleting, setDeleting] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setRequests(data);
+  }, [data]);
+
+  const filteredRequests = React.useMemo(() => {
+    let filtered = [...requests];
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter((request) =>
+        `${request.subject || ''} ${request.level || ''} ${request.message || ''} ${request.email || ''}`
+          .toLowerCase()
+          .includes(term)
+      );
+    }
+    if (statusFilter) {
+      filtered = filtered.filter((request) => request.status === statusFilter);
+    }
+    return filtered;
+  }, [requests, searchTerm, statusFilter]);
+
+  const handleStatusChange = async (id: string, status: ResourceRequest['status']) => {
+    setUpdating(id);
+    try {
+      await updateResourceRequestSafe(id, { status });
+      setRequests((prev) =>
+        prev.map((request) => (request.id === id ? { ...request, status } : request))
+      );
+    } catch (error) {
+      onError('Failed to update request');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Delete this request?')) return;
+    setDeleting(id);
+    try {
+      await deleteResourceRequestSafe(id);
+      setRequests((prev) => prev.filter((request) => request.id !== id));
+    } catch (error) {
+      onError('Failed to delete request');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <input
+            type="text"
+            placeholder="Search requests..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+          >
+            <option value="">All Status</option>
+            <option value="new">New</option>
+            <option value="reviewing">Reviewing</option>
+            <option value="published">Published</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <button
+            onClick={() => onRefresh(true)}
+            className="px-4 py-2 bg-gray-900 text-white text-sm font-500 rounded-lg hover:bg-gray-800"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="px-6 py-3 text-left text-xs font-600 text-gray-900">Request</th>
+              <th className="px-6 py-3 text-left text-xs font-600 text-gray-900">Type</th>
+              <th className="px-6 py-3 text-left text-xs font-600 text-gray-900">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-600 text-gray-900">Created</th>
+              <th className="px-6 py-3 text-right text-xs font-600 text-gray-900">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {filteredRequests.map((request) => (
+              <tr key={request.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">
+                  <div className="text-gray-900 font-500">{request.subject || 'Untitled'}</div>
+                  <div className="text-xs text-gray-500">
+                    {request.level || 'No level'} · {request.email || 'No email'}
+                  </div>
+                  {request.message && (
+                    <div className="text-xs text-gray-600 mt-1 line-clamp-2">{request.message}</div>
+                  )}
+                </td>
+                <td className="px-6 py-4 text-gray-700">{request.education_type}</td>
+                <td className="px-6 py-4">
+                  <select
+                    value={request.status}
+                    onChange={(e) => handleStatusChange(request.id, e.target.value as ResourceRequest['status'])}
+                    className="px-2 py-1 border border-gray-200 rounded text-xs"
+                    disabled={updating === request.id}
+                  >
+                    <option value="new">New</option>
+                    <option value="reviewing">Reviewing</option>
+                    <option value="published">Published</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </td>
+                <td className="px-6 py-4 text-xs text-gray-500">
+                  {new Date(request.created_at).toLocaleDateString()}
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <button
+                    onClick={() => handleDelete(request.id)}
+                    disabled={deleting === request.id}
+                    className="px-3 py-1.5 text-red-600 hover:text-red-700 transition disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {filteredRequests.length === 0 && (
+        <div className="text-center py-8 text-gray-500">
+          No requests found
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ContentPacksTable({
+  data,
+  posts,
+  createdBy,
+  onRefresh,
+  onError,
+}: {
+  data: ContentPack[];
+  posts: Post[];
+  createdBy: string;
+  onRefresh: (skipCache?: boolean) => void;
+  onError: (message: string) => void;
+}) {
+  const [packs, setPacks] = React.useState<ContentPack[]>(data);
+  const [newPack, setNewPack] = React.useState({
+    title: '',
+    description: '',
+    education_type: '',
+    status: 'draft',
+    visibility: 'public',
+  });
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [editPack, setEditPack] = React.useState<any>({});
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [activePack, setActivePack] = React.useState<ContentPack | null>(null);
+  const [items, setItems] = React.useState<ContentPackItem[]>([]);
+  const [selectedPostId, setSelectedPostId] = React.useState('');
+  const [updating, setUpdating] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setPacks(data);
+  }, [data]);
+
+  const handleCreatePack = async () => {
+    if (!newPack.title.trim()) {
+      onError('Pack title is required');
+      return;
+    }
+    if (!createdBy) {
+      onError('Missing user ID for pack creation');
+      return;
+    }
+    try {
+      setUpdating('new-pack');
+      await insertContentPackSafe({
+        title: newPack.title.trim(),
+        description: newPack.description.trim() || undefined,
+        education_type: newPack.education_type || undefined,
+        status: newPack.status,
+        visibility: newPack.visibility,
+        created_by: createdBy,
+      });
+      setNewPack({
+        title: '',
+        description: '',
+        education_type: '',
+        status: 'draft',
+        visibility: 'public',
+      });
+      await onRefresh(true);
+    } catch (error) {
+      onError('Failed to create pack');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleUpdatePack = async (id: string) => {
+    if (!editPack.title?.trim()) {
+      onError('Pack title is required');
+      return;
+    }
+    setUpdating(id);
+    try {
+      await updateContentPackSafe(id, {
+        title: editPack.title.trim(),
+        description: editPack.description?.trim(),
+        education_type: editPack.education_type || null,
+        status: editPack.status,
+        visibility: editPack.visibility,
+      });
+      setEditingId(null);
+      await onRefresh(true);
+    } catch (error) {
+      onError('Failed to update pack');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleDeletePack = async (id: string) => {
+    if (!window.confirm('Delete this pack?')) return;
+    setUpdating(id);
+    try {
+      await deleteContentPackSafe(id);
+      setPacks((prev) => prev.filter((pack) => pack.id !== id));
+      await onRefresh(true);
+    } catch (error) {
+      onError('Failed to delete pack');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const openPackItems = async (pack: ContentPack) => {
+    setActivePack(pack);
+    setIsModalOpen(true);
+    try {
+      const data = await fetchContentPackItemsSafe(pack.id);
+      setItems(data);
+    } catch (error) {
+      onError('Failed to load pack items');
+    }
+  };
+
+  const handleAddItem = async () => {
+    if (!activePack || !selectedPostId) return;
+    try {
+      await addContentPackItemSafe(activePack.id, selectedPostId, items.length);
+      const data = await fetchContentPackItemsSafe(activePack.id);
+      setItems(data);
+      setSelectedPostId('');
+    } catch (error) {
+      onError('Failed to add item');
+    }
+  };
+
+  const handleRemoveItem = async (postId: string) => {
+    if (!activePack) return;
+    try {
+      await removeContentPackItemSafe(activePack.id, postId);
+      setItems(items.filter((item) => item.post_id !== postId));
+    } catch (error) {
+      onError('Failed to remove item');
+    }
+  };
+
+  const getPostTitle = (postId: string) => posts.find((post) => post.id === postId)?.title || 'Unknown';
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <input
+            type="text"
+            placeholder="Pack title"
+            value={newPack.title}
+            onChange={(e) => setNewPack({ ...newPack, title: e.target.value })}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+          />
+          <input
+            type="text"
+            placeholder="Short description"
+            value={newPack.description}
+            onChange={(e) => setNewPack({ ...newPack, description: e.target.value })}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+          />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <select
+            value={newPack.education_type}
+            onChange={(e) => setNewPack({ ...newPack, education_type: e.target.value })}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+          >
+            <option value="">All education types</option>
+            <option value="university">University</option>
+            <option value="school">School</option>
+          </select>
+          <select
+            value={newPack.status}
+            onChange={(e) => setNewPack({ ...newPack, status: e.target.value })}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+          >
+            <option value="draft">Draft</option>
+            <option value="published">Published</option>
+          </select>
+          <select
+            value={newPack.visibility}
+            onChange={(e) => setNewPack({ ...newPack, visibility: e.target.value })}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
+          >
+            <option value="public">Public</option>
+            <option value="private">Private</option>
+          </select>
+          <button
+            onClick={handleCreatePack}
+            disabled={updating === 'new-pack'}
+            className="px-4 py-2 bg-gray-900 text-white text-sm font-500 rounded-lg hover:bg-gray-800 disabled:opacity-50"
+          >
+            Create pack
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-gray-50 border-b border-gray-200">
+              <th className="px-6 py-3 text-left text-xs font-600 text-gray-900">Pack</th>
+              <th className="px-6 py-3 text-left text-xs font-600 text-gray-900">Type</th>
+              <th className="px-6 py-3 text-left text-xs font-600 text-gray-900">Status</th>
+              <th className="px-6 py-3 text-left text-xs font-600 text-gray-900">Visibility</th>
+              <th className="px-6 py-3 text-right text-xs font-600 text-gray-900">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {packs.map((pack) => (
+              <tr key={pack.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">
+                  {editingId === pack.id ? (
+                    <input
+                      type="text"
+                      value={editPack.title}
+                      onChange={(e) => setEditPack({ ...editPack, title: e.target.value })}
+                      className="px-2 py-1 border border-gray-200 rounded text-sm w-full"
+                    />
+                  ) : (
+                    <div className="text-gray-900 font-500">{pack.title}</div>
+                  )}
+                  <div className="text-xs text-gray-500">{pack.description || 'No description'}</div>
+                </td>
+                <td className="px-6 py-4 text-gray-700">
+                  {editingId === pack.id ? (
+                    <select
+                      value={editPack.education_type || ''}
+                      onChange={(e) => setEditPack({ ...editPack, education_type: e.target.value })}
+                      className="px-2 py-1 border border-gray-200 rounded text-sm"
+                    >
+                      <option value="">All</option>
+                      <option value="university">University</option>
+                      <option value="school">School</option>
+                    </select>
+                  ) : (
+                    pack.education_type || 'All'
+                  )}
+                </td>
+                <td className="px-6 py-4">
+                  {editingId === pack.id ? (
+                    <select
+                      value={editPack.status}
+                      onChange={(e) => setEditPack({ ...editPack, status: e.target.value })}
+                      className="px-2 py-1 border border-gray-200 rounded text-sm"
+                    >
+                      <option value="draft">Draft</option>
+                      <option value="published">Published</option>
+                    </select>
+                  ) : (
+                    <span className={`text-xs px-2 py-1 rounded-full font-500 ${
+                      pack.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                    }`}>
+                      {pack.status}
+                    </span>
+                  )}
+                </td>
+                <td className="px-6 py-4">
+                  {editingId === pack.id ? (
+                    <select
+                      value={editPack.visibility}
+                      onChange={(e) => setEditPack({ ...editPack, visibility: e.target.value })}
+                      className="px-2 py-1 border border-gray-200 rounded text-sm"
+                    >
+                      <option value="public">Public</option>
+                      <option value="private">Private</option>
+                    </select>
+                  ) : (
+                    pack.visibility
+                  )}
+                </td>
+                <td className="px-6 py-4 text-right">
+                  {editingId === pack.id ? (
+                    <>
+                      <button
+                        onClick={() => handleUpdatePack(pack.id)}
+                        className="px-3 py-1.5 bg-green-600 text-white text-xs font-500 rounded-lg hover:bg-green-700"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-500 rounded-lg hover:bg-gray-200"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => openPackItems(pack)}
+                        className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-500 rounded-lg hover:bg-blue-100"
+                      >
+                        Items
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingId(pack.id);
+                          setEditPack({
+                            title: pack.title,
+                            description: pack.description,
+                            education_type: pack.education_type || '',
+                            status: pack.status,
+                            visibility: pack.visibility,
+                          });
+                        }}
+                        className="px-3 py-1.5 bg-gray-100 text-gray-700 text-xs font-500 rounded-lg hover:bg-gray-200"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDeletePack(pack.id)}
+                        className="px-3 py-1.5 bg-red-600 text-white text-xs font-500 rounded-lg hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {packs.length === 0 && (
+        <div className="text-center py-8 text-gray-500">No packs yet</div>
+      )}
+
+      <Modal
+        isOpen={isModalOpen}
+        title={activePack ? `Pack items: ${activePack.title}` : 'Pack items'}
+        onClose={() => {
+          setIsModalOpen(false);
+          setActivePack(null);
+          setItems([]);
+        }}
+        maxWidth="xl"
+      >
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row gap-3">
+            <select
+              value={selectedPostId}
+              onChange={(e) => setSelectedPostId(e.target.value)}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-gray-400 flex-1"
+            >
+              <option value="">Select a post to add</option>
+              {posts.map((post) => (
+                <option key={post.id} value={post.id}>
+                  {post.title}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleAddItem}
+              className="px-4 py-2 bg-gray-900 text-white text-sm font-500 rounded-lg hover:bg-gray-800"
+              disabled={!selectedPostId}
+            >
+              Add item
+            </button>
+          </div>
+
+          <div className="border border-gray-200 rounded-lg">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-600 text-gray-700">Post</th>
+                  <th className="px-4 py-3 text-right text-xs font-600 text-gray-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {items.map((item) => (
+                  <tr key={item.post_id}>
+                    <td className="px-4 py-3 text-gray-900">{getPostTitle(item.post_id)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => handleRemoveItem(item.post_id)}
+                        className="px-3 py-1.5 text-red-600 hover:text-red-700 text-xs font-500"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {items.length === 0 && (
+              <div className="text-center py-6 text-gray-500">No items yet</div>
+            )}
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

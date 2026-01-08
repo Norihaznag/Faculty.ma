@@ -62,7 +62,7 @@ export default function App(): React.ReactNode {
       {currentView === 'create-university' && <CreateUniversityPost onBack={() => setCurrentView('home')} />}
       {currentView === 'create-school' && <CreateSchoolPost onBack={() => setCurrentView('home')} />}
       {currentView === 'browse' && <BrowseContent />}
-      {currentView === 'admin' && ['admin', 'moderator'].includes(user.role) && <AdminPanel />}
+      {currentView === 'admin' && ['admin', 'moderator'].includes(user.role) && <AdminPanel user={user} />}
     </Layout>
   );
 }

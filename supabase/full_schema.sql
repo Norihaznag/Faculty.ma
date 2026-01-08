@@ -1,4 +1,192 @@
--- Enable RLS
+-- Full Schema + RLS for Faculty.ma (CMS + Next.js)
+-- ASCII-only strings to avoid encoding issues.
+
+-- Extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+-- Users table (maps to Supabase Auth)
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT UNIQUE NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('admin', 'moderator')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- University structure
+CREATE TABLE IF NOT EXISTS universities (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  city TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS faculties (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  university_id UUID NOT NULL REFERENCES universities(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS fields (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  faculty_id UUID NOT NULL REFERENCES faculties(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  degree_type TEXT NOT NULL CHECK (degree_type IN ('licence', 'master')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS semesters (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  field_id UUID NOT NULL REFERENCES fields(id) ON DELETE CASCADE,
+  name TEXT NOT NULL CHECK (name IN ('S1', 'S2', 'S3', 'S4', 'S5', 'S6')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(field_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS subjects (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  semester_id UUID NOT NULL REFERENCES semesters(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- School structure
+CREATE TABLE IF NOT EXISTS school_levels (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL UNIQUE CHECK (name IN ('College', 'Lycee')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS school_years (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  level_id UUID NOT NULL REFERENCES school_levels(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(level_id, name)
+);
+
+CREATE TABLE IF NOT EXISTS school_subjects (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  year_id UUID NOT NULL REFERENCES school_years(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Posts table (unified)
+CREATE TABLE IF NOT EXISTS posts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  title TEXT NOT NULL,
+  slug TEXT UNIQUE,
+  description TEXT,
+  excerpt TEXT,
+  thumbnail TEXT,
+  category TEXT,
+  university TEXT,
+  field TEXT,
+  subject TEXT,
+  grade TEXT,
+  content TEXT,
+  content_type TEXT NOT NULL CHECK (content_type IN ('course', 'exam', 'td', 'summary', 'link')),
+  education_type TEXT NOT NULL CHECK (education_type IN ('university', 'school')),
+  subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE,
+  school_subject_id UUID REFERENCES school_subjects(id) ON DELETE CASCADE,
+  file_url TEXT,
+  embed_url TEXT,
+  read_time INTEGER,
+  views INTEGER DEFAULT 0,
+  published BOOLEAN DEFAULT FALSE,
+  created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  CONSTRAINT correct_subject_reference CHECK (
+    (education_type = 'university' AND subject_id IS NOT NULL AND school_subject_id IS NULL) OR
+    (education_type = 'school' AND school_subject_id IS NOT NULL AND subject_id IS NULL)
+  )
+);
+
+-- Tags
+CREATE TABLE IF NOT EXISTS tags (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS post_tags (
+  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  tag_id UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+  PRIMARY KEY (post_id, tag_id)
+);
+
+-- Resource requests
+CREATE TABLE IF NOT EXISTS resource_requests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT,
+  email TEXT,
+  education_type TEXT NOT NULL CHECK (education_type IN ('university', 'school')),
+  level TEXT,
+  subject TEXT,
+  message TEXT,
+  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'reviewing', 'published', 'rejected')),
+  source TEXT DEFAULT 'website',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Content packs
+CREATE TABLE IF NOT EXISTS content_packs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  title TEXT NOT NULL,
+  description TEXT,
+  education_type TEXT CHECK (education_type IN ('university', 'school')),
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
+  visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'private')),
+  created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS content_pack_items (
+  pack_id UUID NOT NULL REFERENCES content_packs(id) ON DELETE CASCADE,
+  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  position INTEGER DEFAULT 0,
+  PRIMARY KEY (pack_id, post_id)
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_faculties_university ON faculties(university_id);
+CREATE INDEX IF NOT EXISTS idx_fields_faculty ON fields(faculty_id);
+CREATE INDEX IF NOT EXISTS idx_semesters_field ON semesters(field_id);
+CREATE INDEX IF NOT EXISTS idx_subjects_semester ON subjects(semester_id);
+CREATE INDEX IF NOT EXISTS idx_school_years_level ON school_years(level_id);
+CREATE INDEX IF NOT EXISTS idx_school_subjects_year ON school_subjects(year_id);
+CREATE INDEX IF NOT EXISTS idx_posts_subject ON posts(subject_id);
+CREATE INDEX IF NOT EXISTS idx_posts_school_subject ON posts(school_subject_id);
+CREATE INDEX IF NOT EXISTS idx_posts_published ON posts(published);
+CREATE INDEX IF NOT EXISTS idx_posts_education_type ON posts(education_type);
+CREATE INDEX IF NOT EXISTS idx_posts_slug ON posts(slug);
+CREATE INDEX IF NOT EXISTS idx_resource_requests_status ON resource_requests(status);
+CREATE INDEX IF NOT EXISTS idx_resource_requests_created_at ON resource_requests(created_at);
+CREATE INDEX IF NOT EXISTS idx_content_packs_status ON content_packs(status);
+CREATE INDEX IF NOT EXISTS idx_content_pack_items_pack ON content_pack_items(pack_id);
+
+-- Seed school structure
+INSERT INTO school_levels (id, name) VALUES
+  ('00000000-0000-0000-0000-000000000001', 'College'),
+  ('00000000-0000-0000-0000-000000000002', 'Lycee')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO school_years (level_id, name) VALUES
+  ('00000000-0000-0000-0000-000000000001', '1ere Annee College'),
+  ('00000000-0000-0000-0000-000000000001', '2eme Annee College'),
+  ('00000000-0000-0000-0000-000000000001', '3eme Annee College'),
+  ('00000000-0000-0000-0000-000000000002', 'Common Core'),
+  ('00000000-0000-0000-0000-000000000002', '1ere Annee Bac'),
+  ('00000000-0000-0000-0000-000000000002', '2eme Annee Bac')
+ON CONFLICT DO NOTHING;
+
+-- ===================
+-- RLS
+-- ===================
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE universities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE faculties ENABLE ROW LEVEL SECURITY;
@@ -40,7 +228,7 @@ DROP POLICY IF EXISTS "Admins can view all users" ON users;
 CREATE POLICY "Users can view own data" ON users FOR SELECT USING (id = auth.uid());
 CREATE POLICY "Admins can view all users" ON users FOR SELECT USING (is_admin());
 
--- Structure policies (universities, faculties, etc.)
+-- Structure policies
 DROP POLICY IF EXISTS "Anyone can view universities" ON universities;
 DROP POLICY IF EXISTS "Only admins can insert universities" ON universities;
 DROP POLICY IF EXISTS "Only admins can update universities" ON universities;
@@ -141,10 +329,10 @@ CREATE POLICY "Moderators can manage post tags" ON post_tags FOR ALL USING (is_m
 
 -- Resource requests policies
 DROP POLICY IF EXISTS "Anyone can create resource requests" ON resource_requests;
+DROP POLICY IF EXISTS "Anyone can view published requests" ON resource_requests;
 DROP POLICY IF EXISTS "Moderators can view resource requests" ON resource_requests;
 DROP POLICY IF EXISTS "Moderators can update resource requests" ON resource_requests;
 DROP POLICY IF EXISTS "Moderators can delete resource requests" ON resource_requests;
-DROP POLICY IF EXISTS "Anyone can view published requests" ON resource_requests;
 CREATE POLICY "Anyone can create resource requests" ON resource_requests FOR INSERT WITH CHECK (true);
 CREATE POLICY "Anyone can view published requests" ON resource_requests FOR SELECT USING (status = 'published');
 CREATE POLICY "Moderators can view resource requests" ON resource_requests FOR SELECT USING (is_moderator_or_admin());

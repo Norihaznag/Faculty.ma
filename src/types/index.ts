@@ -49,7 +49,7 @@ export interface Subject {
 
 export interface SchoolLevel {
   id: string;
-  name: 'Collège' | 'Lycée';
+  name: string;
   created_at: string;
 }
 
@@ -87,4 +87,36 @@ export interface Tag {
   id: string;
   name: string;
   created_at: string;
+}
+
+export interface ResourceRequest {
+  id: string;
+  name?: string | null;
+  email?: string | null;
+  education_type: EducationType;
+  level?: string | null;
+  subject?: string | null;
+  message?: string | null;
+  status: 'new' | 'reviewing' | 'published' | 'rejected';
+  source?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContentPack {
+  id: string;
+  title: string;
+  description?: string | null;
+  education_type?: EducationType | null;
+  status: 'draft' | 'published';
+  visibility: 'public' | 'private';
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContentPackItem {
+  pack_id: string;
+  post_id: string;
+  position: number;
 }

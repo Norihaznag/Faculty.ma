@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, CheckCircle, Clock, BookOpen, Plus } from 'lucide-react';
+import { FileText, CheckCircle, Clock, BookOpen, Plus, Inbox, Layers } from 'lucide-react';
 import type { Post, User } from '../../types';
-import { fetchPublishedPostsSafe } from '../../lib/supabaseWithFallback';
+import { fetchPublishedPostsSafe, fetchResourceRequestsSafe, fetchContentPacksSafe } from '../../lib/supabaseWithFallback';
 import { Button, Card, Badge } from '../design-system';
 
 interface DashboardProps {
@@ -10,7 +10,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ user, onNavigate }: DashboardProps): React.ReactNode {
-  const [stats, setStats] = useState({ total: 0, published: 0, draft: 0 });
+  const [stats, setStats] = useState({ total: 0, published: 0, draft: 0, requests: 0, packs: 0 });
   const [posts, setPosts] = useState<Post[]>([]);
 
   useEffect(() => {
@@ -19,13 +19,19 @@ export function Dashboard({ user, onNavigate }: DashboardProps): React.ReactNode
 
   const loadData = async (): Promise<void> => {
     try {
-      const data = await fetchPublishedPostsSafe();
+      const [data, requests, packs] = await Promise.all([
+        fetchPublishedPostsSafe(),
+        fetchResourceRequestsSafe(),
+        fetchContentPacksSafe(),
+      ]);
       const allPosts = (data as Post[]) || [];
       setPosts(allPosts.slice(0, 5)); // Show recent 5
       setStats({
         total: allPosts.length,
         published: allPosts.filter((p: Post) => p.published).length,
         draft: allPosts.filter((p: Post) => !p.published).length,
+        requests: requests.length,
+        packs: packs.length,
       });
     } catch (error) {
       console.error('Error loading stats:', error);
@@ -82,7 +88,7 @@ export function Dashboard({ user, onNavigate }: DashboardProps): React.ReactNode
       {/* Stats Overview */}
       <div>
         <h2 className="text-lg font-semibold text-slate-900 mb-4">Content Overview</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <Card className="p-6">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-blue-100 rounded-lg">
@@ -115,6 +121,30 @@ export function Dashboard({ user, onNavigate }: DashboardProps): React.ReactNode
               <div>
                 <p className="text-sm text-slate-600">Drafts</p>
                 <p className="text-2xl font-bold text-slate-900">{stats.draft}</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-indigo-100 rounded-lg">
+                <Inbox className="w-6 h-6 text-indigo-600" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-600">Requests</p>
+                <p className="text-2xl font-bold text-slate-900">{stats.requests}</p>
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 bg-purple-100 rounded-lg">
+                <Layers className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-600">Packs</p>
+                <p className="text-2xl font-bold text-slate-900">{stats.packs}</p>
               </div>
             </div>
           </Card>

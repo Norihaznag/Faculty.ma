@@ -103,6 +103,41 @@ CREATE TABLE post_tags (
   PRIMARY KEY (post_id, tag_id)
 );
 
+-- Resource requests (Phase 1: demand-driven content)
+CREATE TABLE resource_requests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT,
+  email TEXT,
+  education_type TEXT NOT NULL CHECK (education_type IN ('university', 'school')),
+  level TEXT,
+  subject TEXT,
+  message TEXT,
+  status TEXT NOT NULL DEFAULT 'new' CHECK (status IN ('new', 'reviewing', 'published', 'rejected')),
+  source TEXT DEFAULT 'website',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Content packs (Phase 2: distribution bundles)
+CREATE TABLE content_packs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  title TEXT NOT NULL,
+  description TEXT,
+  education_type TEXT CHECK (education_type IN ('university', 'school')),
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
+  visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'private')),
+  created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE content_pack_items (
+  pack_id UUID NOT NULL REFERENCES content_packs(id) ON DELETE CASCADE,
+  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  position INTEGER DEFAULT 0,
+  PRIMARY KEY (pack_id, post_id)
+);
+
 -- Indexes
 CREATE INDEX idx_faculties_university ON faculties(university_id);
 CREATE INDEX idx_fields_faculty ON fields(faculty_id);
@@ -114,6 +149,10 @@ CREATE INDEX idx_posts_subject ON posts(subject_id);
 CREATE INDEX idx_posts_school_subject ON posts(school_subject_id);
 CREATE INDEX idx_posts_published ON posts(published);
 CREATE INDEX idx_posts_education_type ON posts(education_type);
+CREATE INDEX idx_resource_requests_status ON resource_requests(status);
+CREATE INDEX idx_resource_requests_created_at ON resource_requests(created_at);
+CREATE INDEX idx_content_packs_status ON content_packs(status);
+CREATE INDEX idx_content_pack_items_pack ON content_pack_items(pack_id);
 
 -- Seed school structure
 INSERT INTO school_levels (id, name) VALUES
