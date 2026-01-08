@@ -70,23 +70,32 @@ export const checkUserSafe = async (): Promise<User | null> => {
 };
 
 /**
- * Safely fetch universities
+ * Safely fetch universities with pagination
  * Returns dummy data if Supabase is not ready
+ * 
+ * @param page Page number (1-indexed)
+ * @param limit Items per page (default 100)
  */
-export const fetchUniversitiesSafe = async () => {
+export const fetchUniversitiesSafe = async (page: number = 1, limit: number = 100) => {
   if (!isSupabaseReady()) {
     console.log('Using dummy universities (Supabase not configured)');
     return dummy.dummyUniversities;
   }
 
   try {
-    const { data, error } = await supabase.from('universities').select('*');
+    const offset = (page - 1) * limit;
+    const { data, error, count } = await supabase
+      .from('universities')
+      .select('*', { count: 'exact' })
+      .range(offset, offset + limit - 1)
+      .order('name');
 
     if (error) {
       console.log('Error fetching universities, using dummy data:', error);
       return dummy.dummyUniversities;
     }
 
+    console.log(`📊 Fetched page ${page} of universities (${count} total)`);
     return data || dummy.dummyUniversities;
   } catch (error) {
     console.log('Error fetching universities, using dummy data:', error);
@@ -638,16 +647,23 @@ export const deleteSchoolSubject = async (id: string) => {
 /**
  * Fetch all posts (admin view)
  */
-export const fetchAllPostsSafe = async () => {
+/**
+ * Fetch all posts with pagination
+ * @param page Page number (1-indexed, default 1)
+ * @param limit Items per page (default 50 for admin)
+ */
+export const fetchAllPostsSafe = async (page: number = 1, limit: number = 50) => {
   if (!isSupabaseReady()) {
     console.log('Using dummy posts (Supabase not configured)');
     return dummy.getDummyPublishedPosts();
   }
 
   try {
-    const { data, error } = await supabase
+    const offset = (page - 1) * limit;
+    const { data, error, count } = await supabase
       .from('posts')
-      .select('*')
+      .select('*', { count: 'exact' })
+      .range(offset, offset + limit - 1)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -655,6 +671,7 @@ export const fetchAllPostsSafe = async () => {
       return dummy.getDummyPublishedPosts();
     }
 
+    console.log(`📊 Fetched page ${page} of posts (${count} total)`);
     return data || [];
   } catch (error) {
     console.log('Error fetching all posts, using dummy data:', error);
